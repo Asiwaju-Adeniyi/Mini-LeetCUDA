@@ -5,7 +5,7 @@
 #include <stdlib.h> 
 #include <vector>
 
-#define FLOAT4(value)(reinterpret_cast<float4 *> ((&value)) [0])
+#define FLOAT4(value)(reinterpret_cast<float4 *> (&(value)) [0])
 
 __global__ void elemwise_f32x4(const float* a, const float* b, float* c, int N) {
     int idx = 4 * (threadIdx.x + blockDim.x * blockIdx.x);
