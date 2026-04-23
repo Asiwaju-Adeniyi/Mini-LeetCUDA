@@ -8,7 +8,7 @@ A personal deep-dive into CUDA C++ through first-principles kernel design, optim
 
 This repository is inspired by the idea of *learning by rebuilding*.
 
-Projects like **LeetGPU** show that the fastest way to truly understand GPU programming is not by reading or copying kernels—but by **reconstructing them from scratch**, iteratively, while measuring performance and reasoning about hardware behavior.
+Projects like **LeetGPU**, **LeetCUDA** show that the fastest way to truly understand GPU programming is not by reading or copying kernels—but by **reconstructing them from scratch**, iteratively, while measuring performance and reasoning about hardware behavior.
 
 Mini-LeetCUDA is my attempt to take that idea seriously.
 
