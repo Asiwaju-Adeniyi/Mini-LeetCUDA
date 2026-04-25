@@ -9,7 +9,7 @@
 
 #define WarpSize 32
 
-template <const int NumThreads> 
+template <const int NumThreads = 256> 
 
 __global__ void blockreduc(float *a, float *g, int N) {
     int tid = threadIdx.x;
@@ -29,14 +29,13 @@ __global__ void blockreduc(float *a, float *g, int N) {
         reduceSmem[warp] = val;
 
         __syncthreads();
-    }
+    };
     
     val = (lane < NumWarps) : reduceSmem[lane] ? 0.0f;
 
     if (warp == 0) {
         val = warpreduc<WarpNum>(val);
-    }
-
+    };
 
     if (tid == 0) {
         atomicadd(y, val);
