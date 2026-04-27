@@ -36,7 +36,7 @@ return regA;
 template <const int NumThreads = 256> 
 
 __global__ void blockreduc_f16_f32(half *a, float *y, int N) {
-    int tid = threadIdx.x 
+    int tid = threadIdx.x;
     int idx = blockIdx.x * NumThreads + tid;
 
     constexpr int NumWarps = (NumThreads + WarpSize - 1) / WarpSize;
@@ -53,13 +53,19 @@ __global__ void blockreduc_f16_f32(half *a, float *y, int N) {
     }
 
     if (lane == 0) {
-        sharedreduc[warp] = regA;
-        __syncthreads();
+        sharedreduc[warp] = __half2float(regA);
     }
+     __syncthreads();
 
-    if (lane < NumWarps )
+    float sum = (lane < NumWarps) : sharedreduc ? 0.0f;
+    
 
+  if (warp == 0) (    #pragma unroll 
+    for (int mask = WarpSize >> 1; mask >= 1; mask >>= 1) {
+        sum = __halfadd(regA, __shfl_xor_sync(0xffffffff, regA, mask));
+    })
 
+    atomicadd(y, sum);
 
 
 }
