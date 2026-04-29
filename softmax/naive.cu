@@ -28,7 +28,7 @@ for (int stride = kWarpSize >> 1; strid >= 1; stride >>=1) {
     MD biggerM = (bigger) ? input : other;
     MD smallerM = (bigger) ? other : input;
     
-    input.D = biggerM.d + smallerM.d * __expf(smallerM.M - biggerM.m);
+    input.D = biggerM.d + smallerM.d * __expf(smallerM.M - biggerM.M);
     input.M = biggerM.M; 
 
 }
