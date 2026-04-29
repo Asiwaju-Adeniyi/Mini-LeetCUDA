@@ -77,4 +77,25 @@ __device__ float block_reduction_max(float val) {
     return input;
 }
 
+template <const int NumThreads = 256> 
 
+__device__ float block_reduction_sum(float val){
+    constexpr int WarpNum = (Numthreads + WarpSize - 1) / WarpSize;
+    int warp = threadIdx.x / WarpSize;
+    int lane = threadIdx.x % WarpSize;
+
+    static __shared__ shared[WarpNum];
+
+    float input = softmax_warpReduc_sum<WarpNum>(val);
+
+    if (lane == 0) shared[warp] = input;
+    __syncthreads();
+
+    input = (lane < WarpNum) ? shared[lane] : -FLT_MAX;
+
+    input = softmax_warpReduc_sum<WarpNum>(input);
+
+    input = __shfl_sync(0xffffffff, val, 0, 32);
+
+    return input;
+}
