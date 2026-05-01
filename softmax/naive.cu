@@ -8,6 +8,7 @@
 #include <cmath> 
 
 #define WarpSize 32
+#define FLOAT4(value)(<reinterpret_cast<float4 *> (&(value))[0])
 
 struct __align__(8) MN {
     float M;
@@ -109,4 +110,30 @@ __global__ void softmax_f32 (float *a, float *b, int N) {
     float a_exp_reduc = block_reduction_sum<numThreads>(a_exp);
 
     b[idx] = a_exp / a_exp_reduc;
+}
+
+template <const int numThreads = 256 / 4> 
+
+__global__ void softmax_f32x4(float *a, float *b, int N){
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+
+    float4 regA = FLOAT4(a[idx]);
+    float regA_sum;
+    regA_sum.x = ((idx + 0) < N) ? regA.x : 0.0f;
+    regA_sum.y = ((idx + 1) < N) ? regA.y : 0.0f;
+    regA_sum.z = ((idx + 2) < N) ? regA.z : 0.0f;
+    regA_sum.w = ((idx + 3) < N) ? regA.w : 0.0f;
+    
+    a_exp = (regA_sum.x + regA_sum.y + regA_sum.z + regA_sum.w);
+    a_exp_reduc = block_reduction_sum<numThreads>(a_exp);
+
+    if (idx + 3 < N) {
+        float4 bReg;
+        bReg.x = regA_sum.x / a_exp_reduc;
+        bReg.y = regA_sum.y / a_exp_reduc;
+        bReg.z = regA_sum.z / a_exp_reduc;
+        bReg.w = regA_sum.w / a_exp_reduc;
+    }
+
+    FLOAT4(b[idx]) = bReg;
 }
