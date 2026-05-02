@@ -3,8 +3,6 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <stdlib.h> 
-#include <vector>
-#include <iostream>
 #include <cmath> 
 #include "naive.cu"
 
