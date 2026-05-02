@@ -12,7 +12,7 @@
 #define FLOAT4(value)(<reinterpret_cast<float4 *> (&(value))[0])
 
 template <const int NumThreads = 256> 
-__global__ void safe_softmax_f32(float *a, float *b, int N) {
+__global__ void safe_softmax_f32(const float *a, float *b, int N) {
     const int idx = threadIdx.x + blockIdx.x + blockDim.x;
 
     float val = (idx < N) ? a[idx] : -FLT_MAX;
@@ -23,3 +23,6 @@ __global__ void safe_softmax_f32(float *a, float *b, int N) {
 
     b[idx] = regA / regA_exp;
 }
+
+template <const int NumThreads = 256/4> 
+__global__ void safe_softmax_f32x4(const float *a, float *b, int N)
