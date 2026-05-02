@@ -6,7 +6,7 @@
 #include <vector>
 
 
-__global__ void naiveReduc(const float *a, const float *b, float *c, int N) {
+__global__ void naiveVecAdd(const float *a, const float *b, float *c, int N) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
 
     if (idx < N)
@@ -47,7 +47,7 @@ size_t size = N * sizeof(float);
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
-    naiveReduc<<<bpG, tpB>>>(d_a, d_b, d_c, N);
+    naiveVecAdd<<<bpG, tpB>>>(d_a, d_b, d_c, N);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
 
