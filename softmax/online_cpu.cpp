@@ -7,8 +7,8 @@
 
 void online_softmax_cpu(float* out, const float* inp, int N, int C) {
     for (int i = 0; i < N; i++) {
-        const float* inp_row = inp + i + C;
-        float* out_row = out + i + C;
+        const float* inp_row = inp + i * C;
+        float* out_row = out + i * C;
 
         float maxval = -std::numeric_limits<float>::infinity();
         float sum = 0.0f;
