@@ -62,3 +62,29 @@ __global__ void safe_softmax_f32x4(const float *a, float *b, int N){
     }
     
 }
+
+int main() {
+    int size = 256 * 256;
+
+    std::vector<float> h_a[size];
+    std::vector<float> h_b[size];
+    std::vector<float> h_c[size];
+
+    for (int i = 0; i < N; i++) {
+        h_a[i] = rand() / RAND_MAX;
+        h_b[i] = rand() / RAND_MAX;
+    }
+
+    float* d_a = nullptr;
+    float* d_b = nullptr;
+    float* d_c = nullptr;
+
+    cudaMalloc(h_a, size);
+    cudaMalloc(h_b, size);
+    cudaMalloc(h_c, size);
+
+    int tpB = 256/4;
+    int bpG = (N + tpB - 1) / tpB;
+
+
+}
