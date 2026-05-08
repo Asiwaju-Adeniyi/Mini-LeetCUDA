@@ -27,9 +27,8 @@ __global__ void blockreduc(float *a, float *g, int N) {
 
     if (lane == 0) {
         reduceSmem[warp] = val;
-
-        __syncthreads();
     };
+        __syncthreads();
     
     val = (lane < NumWarps) : reduceSmem[lane] ? 0.0f;
 
