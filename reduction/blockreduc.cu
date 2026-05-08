@@ -30,10 +30,10 @@ __global__ void blockreduc(float *a, float *g, int N) {
     };
         __syncthreads();
     
-    val = (lane < NumWarps) : reduceSmem[lane] ? 0.0f;
+    val = (lane < WarpNum) : reduceSmem[lane] ? 0.0f;
 
     if (warp == 0) {
-        val = warpreduc<WarpNum>(val);
+        val = warpreduc<WarpSize>(val);
     };
 
     if (tid == 0) {
