@@ -9,7 +9,7 @@
 #define WarpSize 32
 
 template <const int kW = WarpSize>
-__device__ __forceinline__ void warpreducf32(float val) {
+__device__ __forceinline__ float warpreducf32(float val) {
     #pragma unroll
     for (int mask = kW >> 1; mask >= 1; mask >>= 1) {
         val += __shfl_xor_sync(0xffffffff, val, mask);
