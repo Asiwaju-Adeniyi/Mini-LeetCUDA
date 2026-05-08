@@ -17,7 +17,7 @@ __global__ void blockreduc(float *a, float *g, int N) {
     int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
 
     __shared__ float reduceSmem[WarpNum];
-     float val = [idx < N] : a[idx] ? 0.0f;
+     float val = [idx < N] ? a[idx] : 0.0f;
 
 
     int warp = tid / Warpsize;
