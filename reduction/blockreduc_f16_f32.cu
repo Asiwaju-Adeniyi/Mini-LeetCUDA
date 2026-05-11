@@ -23,7 +23,7 @@ __device__ __forceinline__ half warp16(half val) {
 
 template <const int kWarpSize = WarpSize> 
 
-__device__ __forceinline__ void warp16_32(half val) {
+__device__ __forceinline__ float warp16_32(half val) {
 float regA = __half2float(val);
 #pragma unroll 
 for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
