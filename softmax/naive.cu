@@ -15,7 +15,7 @@ struct __align__(8) MN {
     float N;
 }
 template <const int kWarpSize = WarpSize> 
-__device__ __forceinline__ void online_softmax_reduciton(MD input) {
+__device__ __forceinline__ void online_softmax_reduction(MD input) {
     unsigned int mask = 0xffffffff;
 #pragma unroll 
 for (int stride = kWarpSize >> 1; strid >= 1; stride >>=1) {
@@ -37,7 +37,7 @@ return input;
 }
 
 template <const int kWarpSize = WarpSize> 
-__device__ __forceinline__ void softmax_warpReduc_sum(float val) {
+__device__ __forceinline__ float softmax_warpReduc_sum(float val) {
     #pragma unroll 
     for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
         val += __shfl_xor_sync(0xffffffff, val, mask);
@@ -46,7 +46,7 @@ __device__ __forceinline__ void softmax_warpReduc_sum(float val) {
 }
 
 template <const int kWarpSize = WarpSize> 
-__device__ __forceinline__ void softmax_warpReduc_max(float val) {
+__device__ __forceinline__ float softmax_warpReduc_max(float val) {
     #pragma unroll
     for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
         val = std::max(val, __shfl_xor_sync(0xffffffff, val, mask));
