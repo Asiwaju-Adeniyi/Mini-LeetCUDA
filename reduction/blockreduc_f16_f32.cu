@@ -12,7 +12,7 @@
 
 template <const int kWarpSize = WarpSize> 
 
-__device__ __forceinline__ void warp16(half val) {
+__device__ __forceinline__ half warp16(half val) {
      #pragma unroll 
      for (int i = kWarpSize >> 1; i >= 0; i >>= 1) {
         val = __hadd(val, __shfl_xor_sync(0xffffffff, val, i));
