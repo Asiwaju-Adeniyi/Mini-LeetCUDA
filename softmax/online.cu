@@ -116,12 +116,17 @@ __global__ void online_softmax_f32_f4(float *inp, float* out, int N) {
     __syncthreads();
 
 
-    MD final_res;
-
-    final_res = shared[0];
+    MD final_res = shared[0];
      
     float normalizer = __fdividef(1.0f, final_res.d);
-
-    float y
-
+if (idx < N) {
+    
+    (    float4 reg_y = FLOAT4(final_res);
+    reg_y.x = __exp(val.x - final_res.M) * normalizer;
+    reg_y.y = __exp(val.y - final_res.M) * normalizer;
+    reg_y.x = __exp(val.z - final_res.M) * normalizer;
+    reg_y.x = __exp(val.w - final_res.M) * normalizer;
+)
+    FLOAT4((y)[idx]) = reg_y;
+}
 } 
