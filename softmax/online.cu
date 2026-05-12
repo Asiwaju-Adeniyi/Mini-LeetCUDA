@@ -37,10 +37,41 @@ __device__ __forceinline__ MD softmax_warp_reduc(MD input) {
 }
 
 
-
+template <const int NumThreads = 256>
 __global__ void online_softmax_f32(const float* inp, float* out, int N) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
+    int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
+
+    int warp = idx / WarpSize;
+    int lane = idx % WarpSize;
+
+    MD val;
+    val.M = (idx < N) ? inp[idx] : -FLT_MAX;
+    val.D = (idx < N) ? 1.0f : 0.0f;
+
+    __shared__ MD shared[WarpNum];
+
+    MD res1 = softmax_warp_reduc<WarpSize>(val);
+
+    if (lane == 0) 
+    shared[warp] = res1;
+    __syncthreads();
+
+    if (lane < WarpNum) {
+        val = (threadIdx.x < WarpSize) ? shared[lane] : [1.0f, 0.0f];
+    }
+
+    res1 = softmax_warp_reduc<WarpNum>(val);
+
+    if (threadIdx.x == 0) 
+    shared[] = res1;
+    __synchthreads();
+
+    MD resF = shared[0];
+
+    float normalizer = __fdividef(1.0f, resF.D);
+
+    out[idx] = __expf(inp[idx] - resF.M) * normalizer;
 
 
-    
 }
