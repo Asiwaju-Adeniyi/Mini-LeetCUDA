@@ -67,8 +67,7 @@ __global__ void online_softmax_f32(const float* inp, float* out, int N) {
             shared[0] = res1;
     }
     __syncthreads();
-
-    if (threadIdx.x == 0)
+    
     MD final_res;
     final_res = shared[0];
 
