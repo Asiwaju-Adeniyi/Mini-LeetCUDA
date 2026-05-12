@@ -59,7 +59,7 @@ __global__ void online_softmax_f32(const float* inp, float* out, int N) {
 
     if (threadIdx.x < WarpSize) {
         MD res2;
-        res2 = (lane < WarpNum) ? shared[lane] : MD{-FLT_MAX, 0.0f};
+        res2 = (threadIdx.x < WarpNum) ? shared[threadIdx.x] : MD{-FLT_MAX, 0.0f};
          
         res1 = softmax_warp_reduc<WarpNum>(res2);
 
@@ -67,7 +67,7 @@ __global__ void online_softmax_f32(const float* inp, float* out, int N) {
             shared[0] = res1;
     }
     __syncthreads();
-    
+
     MD final_res;
     final_res = shared[0];
 
@@ -78,3 +78,50 @@ __global__ void online_softmax_f32(const float* inp, float* out, int N) {
     }
     
 }
+
+
+template <const int NumThreads = 256 / 4> 
+
+__global__ void online_softmax_f32_f4(float *inp, float* out, int N) {
+    int idx = (threadIdx.x + blockDim.x * blockIdx.x) * 4;
+
+    float4 res = FLOAT4(inp[idx]);
+    float local_m = max(max(res.x, res.y), max(res.z, res.w));
+    float local_d = __expf(res.x - local_m) + __expf(res.y - local_m) 
+                   + __expf(res.z - local_m) + __expf(res.w - local_m) + 
+
+    MD val = {local_m, local_d};
+
+    int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
+    int warp = threadIdx.x / WarpSize;
+    int lane = threadIdx.x % WarpSize;
+
+    __shared__ MD shared[WarpNum];
+
+    MD res1 = softmax_warp_reduc<WarpSize>(val);
+
+    if (lane == 0) {
+        shared[Warp] = res1;
+    }
+    __syncthreads();
+
+    if (threadIdx.x < WarpSize) {
+        MD block_res;
+        block_res = (threadIdx.x < WarpNum) ? shared[threadIdx.x] : MD[-FLT_MAX, 1.0f];
+
+        block_res = softmax_warp_reduc<WarpNum>(block_res);
+
+        shared[0] = block_res;
+    }
+    __syncthreads();
+
+
+    MD final_res;
+
+    final_res = shared[0];
+     
+    float normalizer = __fdividef(1.0f, final_res.d);
+
+    float y
+
+} 
