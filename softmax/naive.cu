@@ -22,14 +22,14 @@ for (int stride = kWarpSize >> 1; strid >= 1; stride >>=1) {
     MD other;
 
     other.M = __shfl_xor_sync(mask, input.M, stride);
-    other.D = __shfl_xor_sync(mask, input.D, stride);
+    other.N = __shfl_xor_sync(mask, input.N, stride);
 
     bool bigger = (input.M > other.M);
 
     MD biggerMD = (bigger) ? input : other;
     MD smallerMD = (bigger) ? other : input;
     
-    input.D = biggerMD.d + smallerMD.d * __expf(smallerMD.M - biggerMD.M);
+    input.D = biggerMD.N + smallerMD.N * __expf(smallerMD.M - biggerMD.M);
     input.M = biggerMD.M; 
 
 }

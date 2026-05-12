@@ -9,9 +9,17 @@
 #define WarpSize 32
 #define FLOAT4(value)(<reinterpret_cast<float4 *> (&(value))[0])
 
+struct __align__(8) MD {
+    float M;
+    float D;
+}
+
+
+
 
 __global__ void online_softmax_f32(const float* inp, float* out, int N) {
     int idx = threadIdx.x + blockDim.x * blockIdx.x;
+
 
     
 }
