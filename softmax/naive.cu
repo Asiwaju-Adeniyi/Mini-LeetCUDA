@@ -15,7 +15,7 @@ struct __align__(8) MN {
     float N;
 }
 template <const int kWarpSize = WarpSize> 
-__device__ __forceinline__ void online_softmax_reduction(MD input) {
+__device__ __forceinline__ MD online_softmax_reduction(MD input) {
     unsigned int mask = 0xffffffff;
 #pragma unroll 
 for (int stride = kWarpSize >> 1; strid >= 1; stride >>=1) {
