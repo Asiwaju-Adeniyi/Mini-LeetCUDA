@@ -13,20 +13,20 @@ struct __align__(8) MD {
     float M;
     float D;
 }
-template < const int WarpSize> 
+template < const int kWarpSize = WarpSize> 
 __device__ __forceinline__ MD online_softmax(MD input) {
     int mask = 0xffffffff;
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
 
     #pragma unroll 
-    for (int stride = mask >> 1; stride >= 1; stride >>= 1) {
+    for (int stride = kWarpSize >> 1; stride >= 1; stride >>= 1) {
         other.M = __shfl_xor_sync(mask, input.M, stride);
         other.D = __shfl_xor_sync(mask, input.D, stride);
 
         bool bigger = (input.M > other.M);
 
-        float biggerM = (bigger) ? input : other;
-        float smallerM = (bigger) ? other : input;
+        MD biggerM = (bigger) ? input : other;
+        MD smallerM = (bigger) ? other : input;
 
         input.D = biggerM.D + smallerM.D * __expf(smallerM.M - biggerM.M);
         input.M = biggerM.M;
