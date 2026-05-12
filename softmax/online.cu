@@ -45,31 +45,36 @@ __global__ void online_softmax_f32(const float* inp, float* out, int N) {
     int warp = threadIdx.x / WarpSize;
     int lane = threadIdx.x % WarpSize;
 
+    __shared__ MD shared[WarpNum];
+
     MD val;
     val.M = (idx < N) ? inp[idx] : -FLT_MAX;
     val.D = (idx < N) ? 1.0f : 0.0f;
 
-    __shared__ MD shared[WarpNum];
-
     MD res1 = softmax_warp_reduc<WarpSize>(val);
 
-    if (lane == 0) 
-    shared[warp] = res1;
+    if (lane == 0) {
+        shared[warp] = res1;
+    }
     __syncthreads();
 
     if (threadIdx.x < WarpSize) {
-        val = (lane < WarpNum) ? shared[lane] : MD{-FLT_MAX, 0.0f};
+        MD res2;
+        res2 = (lane < WarpNum) ? shared[lane] : MD{-FLT_MAX, 0.0f};
+         
+        res1 = softmax_warp_reduc<WarpNum>(res2);
 
-    res1 = softmax_warp_reduc<WarpNum>(val);
+        if (threadIdx.x == 0)
+            shared[0] = res1;
+           __syncthreads();
 
-    if (threadIdx.x == 0) 
-    shared[0] = res1;
-    __syncthreads();
+     if (threadIdx.x == 0)
+       res2 = share[0];
 
-    MD resF = shared[0];
 
-    float normalizer = __fdividef(1.0f, resF.D);
+       float normalizer = __fdividef(1.0f, res2.D);
 
-    out[idx] = __expf(inp[idx] - resF.M) * normalizer;
+       output[idx] = __expf(inp[idx] - res2.M) / normalizer;
+
     }
 }
