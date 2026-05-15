@@ -21,6 +21,7 @@ __global__ void matmul_float32(const float *a, const float *b, float *c, int M, 
         for (int i = 0; i < K; i++) {
             accum += a[row * K + i] * b[i * N + col];
         }
-
+    
+        c[row * N + col] = accum;
     }
 }
