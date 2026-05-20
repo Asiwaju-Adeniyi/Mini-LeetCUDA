@@ -16,5 +16,9 @@
 template <const int BM = 32, const int BN = 32, const int BK = 32>
 
 __global__ void gemm_f32_tiled(float *a, float *b, float *c, float *M, float *N, float *K) {
-    
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+    int tx = threadIdx.x;
+    int ty = threadIdx.y;
+    int tid = 
 }
