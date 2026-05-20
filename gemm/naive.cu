@@ -9,6 +9,7 @@
 
 #define WarpSize 32
 #define FLOAT4(value)(reinterpret_cast<float4*> (&(val))[0]) 
+#define INT4(value)(reinterpret_cast<int4*> (&(val)[0]))
 
 
 __global__ void matmul_float32(const float *a, const float *b, float *c, int M, int N, int K) {
@@ -25,3 +26,4 @@ __global__ void matmul_float32(const float *a, const float *b, float *c, int M, 
         c[row * N + col] = accum;
     }
 }
+
