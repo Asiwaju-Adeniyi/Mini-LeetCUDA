@@ -20,5 +20,5 @@ __global__ void gemm_f32_tiled(float *a, float *b, float *c, float *M, float *N,
     int by = blockIdx.y;
     int tx = threadIdx.x;
     int ty = threadIdx.y;
-    int tid = 
+    int tid = ty * blockDim.x * tx;
 }
