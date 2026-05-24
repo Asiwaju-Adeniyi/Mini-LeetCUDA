@@ -24,6 +24,10 @@ __global__ void shared_sgemm(int M, int N, int K, float* A, float *B, float *C) 
     A += cRow * BLOCKSIZE * K;
     B += cCol * BLOCKSIZE;
     C += cRow * BLOCKIZE * N + cCol * BLOCKSIZE;
+
+    float accum = 0.0f;
+
+    
 }
 
 
