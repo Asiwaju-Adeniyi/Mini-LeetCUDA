@@ -15,8 +15,8 @@ __global__ void shared_sgemm(int M, int N, int K, float* A, float *B, float *C) 
     const uint cRow = blockIdx.x;
     const uint cCol = blockIdx.y;
 
-    __shared__ float As[BLOCKSIZE * BLOCKSIZE];
-    __shared__ float Bs[BLOCKSIZE * BLOCKSIZE];
+    __shared__ float sA[BLOCKSIZE * BLOCKSIZE];
+    __shared__ float sB[BLOCKSIZE * BLOCKSIZE];
 
     const uint threadRow = threadIdx.x / BLOCKSIZE;
     const uint threadCol = threadIdx.x % BLOCKSIZE;
@@ -26,6 +26,11 @@ __global__ void shared_sgemm(int M, int N, int K, float* A, float *B, float *C) 
     C += cRow * BLOCKIZE * N + cCol * BLOCKSIZE;
 
     float accum = 0.0f;
+
+    for (int bkIdx = 0; bkIdx < (K + BLOCKSIZE - 1)/ BLOCKSIZE; bkIdx += BLOCKSIZE) {
+        sA[threadRow * BLOCKSIZE + threadCol] = A[threadRow * K + threadCol];
+        sB
+    }
 
     
 }
