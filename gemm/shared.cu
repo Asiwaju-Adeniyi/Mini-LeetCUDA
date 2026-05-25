@@ -27,7 +27,7 @@ __global__ void shared_sgemm(int M, int N, int K, float* A, float *B, float *C) 
 
     float accum = 0.0f;
 
-    for (int bkIdx = 0; bkIdx < (K + BLOCKSIZE - 1)/ BLOCKSIZE; bkIdx += BLOCKSIZE) {
+    for (int bkIdx = 0; bkIdx < K ; bkIdx += BLOCKSIZE) {
         sA[threadRow * BLOCKSIZE + threadCol] = A[threadRow * K + threadCol];
         sB[threadRow * BLOCKSIZE + threadCol] = B[threadRow * N + threadCol];
 
