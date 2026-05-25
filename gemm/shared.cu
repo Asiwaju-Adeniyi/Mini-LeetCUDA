@@ -29,10 +29,20 @@ __global__ void shared_sgemm(int M, int N, int K, float* A, float *B, float *C) 
 
     for (int bkIdx = 0; bkIdx < (K + BLOCKSIZE - 1)/ BLOCKSIZE; bkIdx += BLOCKSIZE) {
         sA[threadRow * BLOCKSIZE + threadCol] = A[threadRow * K + threadCol];
-        sB
-    }
+        sB[threadRow * BLOCKSIZE + threadCol] = B[threadRow * N + threadCol];
 
-    
+        __syncthreads();
+
+        A += BLOCKSIZE;
+        B += BLOCKSIZE * N;
+
+        for (int dotIdx = 0; dotIdx < BLOCKSIZE; ++dotIdx) {
+            accum += sA[threadRow * BLOCKSIZE + dotIdx] * sB[dotIdx * BLOCKSIZE + threadCol];
+        }
+        __syncthreads();
+    }
+      
+    C[threadRow * N + threadCol] = accum;  
 }
 
 
