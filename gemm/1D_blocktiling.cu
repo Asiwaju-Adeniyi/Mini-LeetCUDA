@@ -21,10 +21,10 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
 
     static_assert((BM * BK) == blockIdx.x, "You sure?");
     static_assert((BN * BK) == blockIdx.x, "You damn sure?");
-    const uint innerRowA = threadRow / BM;
-    const uint innerColA = threadCol / BK;
-    const uint innerRowB = threadRow / BK;
-    const uint innerColB = threadCol / BN;
+    const uint innerRowA = threadRow / BK;
+    const uint innerColA = threadCol % BK;
+    const uint innerRowB = threadRow / BN;
+    const uint innerColB = threadCol % BN;
 
     A += cRow * BK * K;
     B += cCol * BN;
@@ -35,8 +35,8 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
     float accum[TM] = {0.0};
 
         for (int bkIdx = 0; bkIdx < K; bkIdx++) {
-            sA[threadRow * BK + threadCol] = A[threadRow * K + threadCol];
-            sB[threadRow * BN + threadCol] = A[threadRow * N + threadCol];
+            sA[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
+            sB[innerRowB * BN + innerColB] = A[innerRowB * N + innerColB];
 
             __syncthreads();
 
@@ -44,7 +44,7 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
             B += BN * N;
 
             for (int id = 0; id < BK; id++) {
-                float accumB = sB[innerRow * BN + innerCol];
+                float accumB = sB[innerRowB * BN + innerColB];
 
                 for (int dot = 0; dot < BK; dot++) {
                    accum[dot] += sA[(threadRow * TM + dot) * K + id] * accumB;
