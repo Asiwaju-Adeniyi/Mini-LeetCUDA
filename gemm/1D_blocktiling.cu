@@ -26,9 +26,9 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
     const uint innerRowB = threadRow / BN;
     const uint innerColB = threadCol % BN;
 
-    A += cRow * BK * K;
+    A += cRow * BM * K;
     B += cCol * BN;
-    C += cRow * BK * K + cCol * BN;
+    C += cRow * BM * N + cCol * BN;
 
 
 
