@@ -36,5 +36,31 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
     B += cCol * BN;
     C += cRow * BK * N + cCol * BN;
 
-    const uint trpT[TM * TN] = {0.0f};
+    const uint trpT[TM * TN] = {0.0};
+
+    const uint regM{TM} = {0.0};
+    const uint regN{TN} = {0.0};
+
+    for (int bkIdx = 0; bkIdx < K; bkIdx += BK) { 
+
+        for (int offset = 0; offset < K; offset += strideA) {
+            sA[(innerRowA + strideA) * BK + innerColA] = A[(innerRowA + strideA) * K + innerColA];
+        } 
+
+        for (int offset = 0; offset < K; offset += strideB) {
+            sB[(innerRowB + strideB) * BN + innerColB] = B[(innerRowB + strideB) * N + innerColB];
+        }
+
+        for (int dotIdx = 0; dotIdx < BK; dotIdx++) {
+            regM{i} = sA[(threadRow * TM + i) * BK + dotIdx];
+        }
+        for (int dotIdx = 0; dot < BK; dotIdx++) {
+            regN{i} = sB[(i * TN + dotIdx) * BN + threadCol];
+        }
+
+        for (int resIdx = 0; resIdx < BK; resIdx++) {
+            trpT[resIdx] = regM[]
+        }
+
+    }
 }
