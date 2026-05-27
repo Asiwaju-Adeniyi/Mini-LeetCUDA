@@ -43,7 +43,7 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
 
     for (int bkIdx = 0; bkIdx < K; bkIdx += BK) { 
 
-        for (int offset = 0; offset < K; offset += strideA) {
+        for (int offset = 0; offset < BM; offset += strideA) {
             sA[(innerRowA + strideA) * BK + innerColA] = A[(innerRowA + strideA) * K + innerColA];
         } 
 
