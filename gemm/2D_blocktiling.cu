@@ -68,7 +68,9 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
 
     }
 
-    for (int resIdxM = 0; resIdxM < BK; resIdxM++){
-        for (int )
+    for (int resIdxM = 0; resIdxM < TM; resIdxM++){
+        for (int resIdxN = 0; resIdxN < TN; resIdxN++) {
+         C[(innerRow * TM + resIdxM) * N + threadCol * TN + resIdxN] = trpT;
+        }
     }
 }
