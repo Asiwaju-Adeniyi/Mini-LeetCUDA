@@ -53,24 +53,28 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
 
         __syncthreads();
 
-        for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
+    for (int dotIdx = 0; dotIdx < BK) {
+        for (int i = 0; i < TM; i++) {
             regM{i} = sA[(threadRow * TM + i) * BK + dotIdx];
         }
-        for (int resIdxN = 0; resIdxN < TN; resIdxN++) {
-            regN{i} = sB[(i * TN + dotIdx) * BN + threadCol];
+        for (int i = 0; i < TN; i++) {
+            regN{i} = sB[dotIdx * BN + threadCol * TN + i];
         }
 
-        for (int dotIdx = 0; dotIdx < BK; dotIdx++) {
-            trpT[dotIdx] = regM[threadRow * TM + dotIdx] * regN[dotIdx * TN + threadCol];
-        }
+        for (int resIdxM = 0; resIdxM < TM; dotIdx++) {
+            for (int resIdxN = 0; resIdxN < TN; dotIdx++) {
 
-        __syncthreads();
+            }
+            trpT[resIdxM * TN + resIdxN] = regM[resIdxM] * regN[resIdxN];
+        }
+    }
+    __syncthreads();
 
     }
 
     for (int resIdxM = 0; resIdxM < TM; resIdxM++){
         for (int resIdxN = 0; resIdxN < TN; resIdxN++) {
-         C[(innerRow * TM + resIdxM) * N + threadCol * TN + resIdxN] = trpT;
+         C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN] = trpT;
         }
     }
 }
