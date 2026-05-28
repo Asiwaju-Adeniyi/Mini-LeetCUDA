@@ -45,7 +45,25 @@ __global__ void vectorized_kernel(int M, int N, int K, float *a, float *b, float
 
         FLOAT4(sB[innerRow * BN + innerCol * 4]) = FLOAT4(B[innerRow * N + innerCol * 4]);
 
-        
+        __syncthreads();
+
+        A += BK;
+        B += BK * N;
+
+        for (int dotIdx = 0; dotIdx < BK; dotIdx++) {
+            for (int i = 0; i < TM; i++) {
+                regM[i] = sA[(dotIdx * BM + threadRow * TM + i)];
+            }
+            for (int i = 0; i < TN; i++) {
+                regN[i] = sB[dotIdx * BN + threadCol * TN + i];
+            }
+
+            for (uint resIdxM = 0; resIdxM < TM; resIdxM++) {
+                for (uint resIdxN = 0; resIdxN < TN; resIdxN++) {
+                    rpbT[resIdxM * TN + resIdxN] = regM[resIdxM] * regN[resIdxN];
+                }
+            }
+        }
         
     }
 
