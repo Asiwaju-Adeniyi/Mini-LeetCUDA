@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cmath> 
 
+
 template <const int BK, const int BM, const int BN, const int TM, TN>
 
 __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M, int N, int K, float *a, float *b, float *c) {
