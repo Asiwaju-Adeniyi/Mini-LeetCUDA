@@ -64,7 +64,22 @@ __global__ void vectorized_kernel(int M, int N, int K, float *a, float *b, float
                 }
             }
         }
+        __syncthreads;
         
+    }
+
+    for (uint resIdxM = 0; resIdxM < TM; resIdxM++) {
+        for (uint resIdxN = 0; resIdxN < TN; resIdxN += 4) {
+            float4 accum = FLOAT4(C[threadRow * TM + resIdxM] * N + threadCol * TN + resIdxN);
+
+            accum.x = rpbT[resIdxM * TN + resIdxN + 0];
+            accum.y = rpbT[resIdxM * TN + resIdxN + 1];
+            accum.z = rpbT[resIdxM * TN + resIdxN + 2];
+            accum.w = rpbT[resIdxM * TN + resIdxN + 3];
+
+            FLOAT4(C[threadRow * TM + resIdxM] * N + threadCol * TN + resIdxN);
+
+        }
     }
 
 }
