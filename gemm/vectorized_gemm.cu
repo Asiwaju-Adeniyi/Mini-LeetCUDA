@@ -37,7 +37,14 @@ __global__ void vectorized_kernel(int M, int N, int K, float *a, float *b, float
    
 
     for (int bkIdx = 0; bkIdx < K; bkIdx += BK) {
-        FLOAT4(sA[])
+        float4 accum = FLOAT4(A[innerRowA * K + innerColA * 4]);
+        sA[(innerColA * 4 + 0) * BM + innerRowA] = accum.x;  
+        sA[(innerColA * 4 + 1) * BM + innerRowA] = accum.y;
+        sA[(innerColA * 4 + 2) * BM + innerRowA] = accum.z;
+        sA[(innerColA * 4 + 3) * BM + innerRowA] = accum.w;
+
+
+        
     }
 
 }
