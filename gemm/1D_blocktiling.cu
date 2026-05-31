@@ -36,7 +36,7 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
 
         for (int bkIdx = 0; bkIdx < K; bkIdx++) {
             sA[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
-            sB[innerRowB * BN + innerColB] = A[innerRowB * N + innerColB];
+            sB[innerRowB * BN + innerColB] = B[innerRowB * N + innerColB];
 
             __syncthreads();
 
