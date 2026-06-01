@@ -37,7 +37,7 @@ __global__ void blockreduc(float *a, float *g, int N) {
     };
 
     if (tid == 0) {
-        atomicadd(y, val);
+        atomicAdd(y, val);
     }
     
 }
