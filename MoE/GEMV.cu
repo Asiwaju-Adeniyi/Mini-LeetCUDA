@@ -9,4 +9,9 @@
 __global__ void gemv_kernel(const float *A, const float *x, float* y, int batch, int M, int N) {
     int batch_idx = blockIdx.z;
     int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (batch_idx < batch && row < M) {
+        const float* batchA = A + batch_idx * M * N;
+        const float* batchx = x + batch_idx * N;
+    }
 }
