@@ -14,4 +14,25 @@ __global__ topk(const float* input, float *values, float *indices, int batch_siz
         float* v_row = values + batch_idx * k;
         float* i_row = indices + batch_idx * k;
     }
+
+    for (int i = 0; i < k; i++) {
+        v_row[i] = -INFINITY;
+        i_row[i] = -1;
+    }
+
+
+    for (int i = 0; i < n; i++) {
+        float val = input_row[i];
+
+        for (int j = 0; j < k; j++) {
+            if (val > v_row[j]) {
+                for (int m = k - 1; m > j; m--) {
+                    v_row[m] = v_row[m-1];
+                    i_row[m] = i_row[m-1];
+                }
+
+
+            }
+        }
+    }
 }
