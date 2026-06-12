@@ -31,7 +31,8 @@ __global__ topk(const float* input, float *values, float *indices, int batch_siz
                     i_row[m] = i_row[m-1];
                 }
 
-
+                v_row[j] = val;
+                i_row[j] = i;
             }
         }
     }
