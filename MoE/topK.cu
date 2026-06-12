@@ -33,6 +33,7 @@ __global__ topk(const float* input, float *values, float *indices, int batch_siz
 
                 v_row[j] = val;
                 i_row[j] = i;
+                break;
             }
         }
     }
