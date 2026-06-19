@@ -26,23 +26,24 @@ __device__ __forceinline__ float warpReduceSum(float val){
     uint WarpSize = 32;
     #pragma unroll
 
-    for (int delta = WarpSize >> 1; delta >= 0; delta >>= 1) {
-        val += shfl_down_sync(0xfffffff, val, delta);
+    for (int delta = WarpSize >> 1; delta > 0; delta >>= 1) {
+        val += __shfl_down_sync(0xffffffff, val, delta);
     }
     return val;
 }
 
-__global__ void gemV_address_tracking(const float *a, const float *b, float *c, int M, int N) {
-    const uint row = blockDim.x;
-    
-    if (row < M) {
-        float PartialAccum = 0.0f;
-        for (int i = 0; i < N; i++) {
-            if (row < 3 && i == 0) {
-                printf("thread %u: a address = %p, b address = %p\n",
-                       row, (void*)&a[row * N + i], (void*)&b[i]);
-            }
-        }
-        c[row] = accum;
+__global__ void matVec(const float *a, const float *b, float *c, int M, int N) {
+    const uint row = blockIdx.y * blockDim.y + threadIdx.y;
+    if (row >= M) return;
+
+    float partialAccum = 0.0f;
+    int tid = threadIdx.x;
+    for (int i = tid;  i < N; i += blockDim.x) {
+    partialAccum += a[row * N + i] * b[i]; 
+
+    float temp = warpReduce(partialAccum);
+
+    if (tid == 0) {
+       c[row] = temp;
     }
-}
+ } }
