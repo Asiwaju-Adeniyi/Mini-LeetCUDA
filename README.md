@@ -169,3 +169,11 @@ Expect incremental progress, experiments, and evolving implementations.
 Inspired by the philosophy behind LeetGPU and the broader CUDA performance engineering community.
 
 ---
+
+## Resources 
+- [LeetCUDA](https://github.com/xlite-dev/LeetCUDA/tree/main).
+- [CUDA for Deep Learning](https://www.manning.com/books/cuda-for-deep-learning) by Elliot Arledge. 
+- Simon Boehm's [How to Optimize a CUDA Matmul Kernel for cuBLAS-like Performance: a Worklog](https://siboehm.com/articles/22/CUDA-MMM). 
+- [Modern GPU programming for MLsys](https://mlc.ai/modern-gpu-programming-for-mlsys/).
+- [How To Write a Fast Matrix Multiplication From Scratch With Tensor Cores](https://alexarmbr.github.io/2024/08/10/How-To-Write-A-Fast-Matrix-Multiplication-From-Scratch-With-Tensor-Cores.html).
+
