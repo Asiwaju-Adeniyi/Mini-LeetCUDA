@@ -49,4 +49,7 @@ __global__ void naiveLayerNorm(const float* __restrict__ inp, float* __restrict_
 
             out_idx[i] = scaled;
         }
+
+        mean[idx] = m;
+        rstd[idx] = s;
     }
