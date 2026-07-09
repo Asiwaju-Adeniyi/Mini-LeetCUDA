@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cmath>
 
-/** input is a matric of dimension N by C;
+/** input is a matrix of dimension N by C;
  * out is also a matrix of dimension N by C;
  *  mean is a separate buffer of size N that stores the mean computed for each row. 
  * The reason we store mean in a buffer despite computing it midkernel is the backward pass — during backprop, LayerNorm's gradient computation needs the mean and rstd from the forward pass. 
@@ -18,7 +18,7 @@
 __global__ void naiveLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
     float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) {
         
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
+      if (idx < N) { int idx = blockIdx.x * blockDim.x + threadIdx.x;
         float eps = 1e-5f;  
 
         const float* x = inp + idx * C;
@@ -49,7 +49,7 @@ __global__ void naiveLayerNorm(const float* __restrict__ inp, float* __restrict_
 
             out_idx[i] = scaled;
         }
-
-        mean[idx] = m;
+                mean[idx] = m;
         rstd[idx] = s;
-    }
+}
+}
