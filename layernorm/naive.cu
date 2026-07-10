@@ -18,7 +18,9 @@
 __global__ void naiveLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
     float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) {
         
-      if (idx < N) { int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+      if (idx < N) { 
         float eps = 1e-5f;  
 
         const float* x = inp + idx * C;
@@ -49,7 +51,7 @@ __global__ void naiveLayerNorm(const float* __restrict__ inp, float* __restrict_
 
             out_idx[i] = scaled;
         }
-                mean[idx] = m;
+        mean[idx] = m;
         rstd[idx] = s;
 }
 }
