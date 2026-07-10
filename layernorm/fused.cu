@@ -12,7 +12,7 @@ __device__ __forceinline__ warpReduc(float val) {
     return val;
 }
 
-__global__ void fusedLayerNorm(const float* __restrict__ in, float* __restrict__ out, float* __restrict__ gamma, 
+__global__ void warpLayerNorm(const float* __restrict__ in, float* __restrict__ out, float* __restrict__ gamma, 
     float* __restrict__ beta, float* __restrict__ mean, float* __restrict__ rstd, int N, int C) {
         
         int lane = threadIdx.x % WarpSize;
