@@ -4,9 +4,9 @@
 #include <cmath>
 #define WarpSize 32
 
-__device__ __forceinline__ warpReduc(float val) {
+__device__ __forceinline__ float warpReduc(float val) {
     #pragma unroll 
-    for (int offset = WarpSize >> 1; offset >= 1; offset >>= 1) {
+    for (int offset = WarpSize >> 1; offset > 0; offset >>= 1) {
         val += __shfl_down_sync(0xffffffff, val, offset);
     }
     return val;
