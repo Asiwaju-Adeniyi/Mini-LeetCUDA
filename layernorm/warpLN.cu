@@ -51,7 +51,7 @@ __global__ void warpLayerNorm(const float* __restrict__ in, float* __restrict__ 
 
         s = rsqrtf(s/c + eps);
 
-        if (lane ==0 && rstd != nullptr) {
+        if (lane == 0 && rstd != nullptr) {
             rstd[idx] = s;
         }
 
