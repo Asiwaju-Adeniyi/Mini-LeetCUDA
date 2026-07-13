@@ -22,12 +22,32 @@ __global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict_
         int tid = threadIdx.x + blockDim.x * blockIdx.x;
         float eps = 1e-5f;
 
-        if (tid < C) {return; };
+        if (tid >= N) {return; };
 
         state fused{0.0f, 0.0f};
-        int x = inp + tid * C;
+        const float* x = inp + tid * C;
 
-        fused.sum = 
+        for (int i = 0; i < C; i++) {
+        fused.sum += x[i];
+        fused.sumSQ += x[i] * x[i];
+        }
+
+        float m  = fused.sum / C;
+        float var = (fused.sumSQ / C) - (m * m);
+
+        float s = rsqrtf(var + eps);
+
+        float* y = out + tid * C;
+
+        for (int i = 0; i < C; i++) {
+            float norm = (x[i] - m) * s;
+            float scaled = gamma[i] * norm + beta[i];
+
+            y[i] = scaled;
+        }
+
+        mean[tid] = m;
+        rstd[tid] = s;
 
     }
 
