@@ -4,6 +4,7 @@
 #include <cmath>
 
 #define warpSize 32
+constexpr int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
 
 template <typename numThreads 256> 
 
@@ -24,7 +25,7 @@ __device__ __forceinline__ float blockReduc(float val, int N) {
       int tid = blockIdx.x * blockDim.x + threadIdx.x;
       int warp = threadIdx.x / warpSize;
       int lane = threadIdx.x % warpSize;
-      int WarpNum = (blockDim.x + warpSize - 1) / 32;
+      
 
 
       __shared__ float reduc[WarpNum];
@@ -40,7 +41,14 @@ __device__ __forceinline__ float blockReduc(float val, int N) {
       __syncthreads();
 
       a = (lane < warpNum) ? reduc[lane] : 0.0f;
-}
+
+      if (warp == 0){
+        a = warpReduc<warpSize>a;
+      } 
+
+
+    
+    }
 
 __global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
     float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) {

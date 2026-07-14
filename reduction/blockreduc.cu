@@ -8,6 +8,7 @@
 #include "warpreduc.cu"
 
 #define WarpSize 32 
+constexpr int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
 
 template <const int NumThreads = 256> 
 
@@ -15,7 +16,7 @@ __global__ void blockreduc(float *a, float *g, int N) {
     
     int tid = threadIdx.x;
     int idx = blockIdx.x * NumThreads + tid;
-    int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
+   
 
     __shared__ float reduceSmem[WarpNum];
      float val = [idx < N] ? a[idx] : 0.0f;
