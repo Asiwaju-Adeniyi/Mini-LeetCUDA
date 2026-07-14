@@ -43,5 +43,3 @@ __global__ void blockreduc(float *a, float *g, int N) {
     
 }
 
-
-

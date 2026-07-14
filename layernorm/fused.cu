@@ -3,10 +3,14 @@
 #include <cstdlib>
 #include <cmath>
 
+#define warpSize 32
+
+template <typename numThreads 256> 
+
 struct __align__(8) state{
     float sum;
     float sumSQ;
-}
+};
 
 __device__ __forceinline__ float warpReduc(float val) {
     #pragma unroll 
@@ -14,6 +18,28 @@ __device__ __forceinline__ float warpReduc(float val) {
         val += __shfl_down_sync(0xffffffff, val, offset);
     }
     return val;
+}
+
+__device__ __forceinline__ float blockReduc(float val, int N) {
+      int tid = blockIdx.x * blockDim.x + threadIdx.x;
+      int warp = threadIdx.x / warpSize;
+      int lane = threadIdx.x % warpSize;
+      int WarpNum = (blockDim.x + warpSize - 1) / 32;
+
+
+      __shared__ float reduc[WarpNum];
+
+      float a = (idx < N) ? val[idx] : 0.0f;
+
+      a = warpReduc<warpNum>(a);
+
+      if (lane == 0) {
+        reduc[warp] = a;
+      };
+
+      __syncthreads();
+
+      a = (lane < warpNum) ? reduc[lane] : 0.0f;
 }
 
 __global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
@@ -51,3 +77,7 @@ __global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict_
 
     }
 
+
+
+__global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
+    float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) 
