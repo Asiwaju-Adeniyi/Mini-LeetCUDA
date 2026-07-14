@@ -21,10 +21,10 @@ __global__ void blockreduc(float *a, float *g, int N) {
      float val = (idx < N) ? a[idx] : 0.0f;
 
 
-    int warp = tid / warpSize;
-    int lane = tid % warpSize; 
+    int warp = tid / WarpSize;
+    int lane = tid % WarpSize; 
 
-    val = warpreduc<warpSize>(val);  
+    val = warpreduc<WarpSize>(val);  
 
     if (lane == 0) {
         reduceSmem[warp] = val;
@@ -34,7 +34,7 @@ __global__ void blockreduc(float *a, float *g, int N) {
     val = (lane < warpNum) ? reduceSmem[lane] : 0.0f;
 
     if (warp == 0) {
-        val = warpreduc<WarpNum>(val);
+        val = warpreduc<warpNum>(val);
     };
 
     if (tid == 0) {
