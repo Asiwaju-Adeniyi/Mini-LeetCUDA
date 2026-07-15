@@ -3,36 +3,35 @@
 #include <cstdlib>
 #include <cmath>
 
-#define warpSize 32
-constexpr int WarpNum = (NumThreads + WarpSize - 1) / WarpSize;
-
-template <typename numThreads 256> 
+#define WarpSize 32
 
 struct __align__(8) state{
     float sum;
     float sumSQ;
 };
 
+template <const int kW = WarpSize>
 __device__ __forceinline__ float warpReduc(float val) {
     #pragma unroll 
-    for (int offset = WarpSize >> 1; offset > 0; offset >>= 1) {
+    for (int offset = kW >> 1; offset > 0; offset >>= 1) {
         val += __shfl_down_sync(0xffffffff, val, offset);
     }
     return val;
 }
 
-__device__ __forceinline__ float blockReduc(float val, int N) {
+template <const int numThreads = 256> 
+
+__global__ __forceinline__ void blockReduc(float* val, float* out, int N) {
       int tid = blockIdx.x * blockDim.x + threadIdx.x;
-      int warp = threadIdx.x / warpSize;
-      int lane = threadIdx.x % warpSize;
-      
+      constexpr int warpNum = (numThreads + WarpSize - 1) / WarpSize;
+      int warp = threadIdx.x / WarpSize;
+      int lane = threadIdx.x % WarpSize;
 
+      __shared__ float reduc[warpNum];
 
-      __shared__ float reduc[WarpNum];
+      float a = (tid < N) ? val[tid] : 0.0f;
 
-      float a = (idx < N) ? val[idx] : 0.0f;
-
-      a = warpReduc<warpNum>(a);
+      a = warpReduc<WarpSize>(a);
 
       if (lane == 0) {
         reduc[warp] = a;
@@ -43,14 +42,15 @@ __device__ __forceinline__ float blockReduc(float val, int N) {
       a = (lane < warpNum) ? reduc[lane] : 0.0f;
 
       if (warp == 0){
-        a = warpReduc<warpSize>a;
+        a = warpReduc<WarpSize>(a);
       } 
 
-
+      atomicAdd(out, a);
     
     }
 
-__global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
+
+__global__ void naiveFusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
     float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) {
 
         int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -85,7 +85,44 @@ __global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict_
 
     }
 
+template <const int numThreads = 256> 
 
+__global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
+    float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) {
+        int idx = blockIdx.x;
+        float eps = 1e-5f;
+         
+        const float* x = inp + idx * C;
 
-__global__ void fusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
-    float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) 
+        state fused{0.0f, 0.0f};
+
+        extern __shared__ float shared[];
+
+        for (int i = 0; i < C; i += blockDim.x) {
+            shared[i] = x[i];
+        }
+        __syncthreads();
+
+        for (int j = 0; j < C; j++) {
+            fused.sum += shared[i];
+            fused.sumSQ += shared[i] * shared[i];
+        }
+        
+
+        fused.sum = blockReduc<numThreads>(fused.sum);
+        fused.sumSQ = blockReduc<numThreads>(fused.sumSQ);
+
+        float m = fused.sum / C;
+        float var = (fused.sumSQ / C) - (m * m); 
+        float r = rsqrtf(var - eps);
+
+        float* y = out + idx * C;
+
+        for (int k = 0; k < C; k++) {
+            float norm = (shared[i] - m) * r;
+            float scaled = gamma[i] * norm + beta[i];
+        }
+       mean[idx] = m;
+       rstd[idx] = r;
+
+    }
