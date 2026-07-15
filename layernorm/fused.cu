@@ -21,27 +21,27 @@ __device__ __forceinline__ float warpReduc(float val) {
 
 template <const int numThreads = 256> 
 
-__device__ __forceinline__ void blockReduc(float val, float* reducBuf) {
-      int tid = blockIdx.x * blockDim.x + threadIdx.x;
+__device__ __forceinline__ float blockReduc(float val, float* reducBuf) {
+    
       constexpr int warpNum = (numThreads + WarpSize - 1) / WarpSize;
       int warp = threadIdx.x / WarpSize;
       int lane = threadIdx.x % WarpSize;
 
 
-      a = warpReduc<WarpSize>(a);
+      val = warpReduc<WarpSize>(val);
 
       if (lane == 0) {
-        reducBuf[warp] = a;
+        reducBuf[warp] = val;
       };
       __syncthreads();
 
-      a = (lane < warpNum) ? reducBuf[lane] : 0.0f;
+      val = (lane < warpNum) ? reducBuf[lane] : 0.0f;
 
       if (warp == 0){
-        a = warpReduc<WarpSize>(a);
+        val = warpReduc<WarpNume>(val);
       } 
 
-      return a;
+      return val;
     
     }
 
