@@ -21,7 +21,7 @@ __device__ __forceinline__ float warpReduc(float val) {
 
 template <const int numThreads = 256> 
 
-__global__ __forceinline__ void blockReduc(float* val, float* out, int N) {
+__device__ __forceinline__ void blockReduc(float* val, float* out, int N) {
       int tid = blockIdx.x * blockDim.x + threadIdx.x;
       constexpr int warpNum = (numThreads + WarpSize - 1) / WarpSize;
       int warp = threadIdx.x / WarpSize;
@@ -114,7 +114,7 @@ __global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __rest
 
         float m = fused.sum / C;
         float var = (fused.sumSQ / C) - (m * m); 
-        float r = rsqrtf(var - eps);
+        float r = rsqrtf(var + eps);
 
         float* y = out + idx * C;
 
