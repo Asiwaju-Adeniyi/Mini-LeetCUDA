@@ -98,14 +98,14 @@ __global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __rest
 
         extern __shared__ float shared[];
 
-        for (int i = 0; i < C; i += blockDim.x) {
+        for (int i = threadIdx.x; i < C; i += blockDim.x) {
             shared[i] = x[i];
         }
         __syncthreads();
 
-        for (int j = 0; j < C; j++) {
-            fused.sum += shared[i];
-            fused.sumSQ += shared[i] * shared[i];
+        for (int j = threadIdx.x; j < C; j++) {
+            fused.sum += shared[j];
+            fused.sumSQ += shared[j] * shared[j];
         }
         
 
@@ -119,8 +119,9 @@ __global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __rest
         float* y = out + idx * C;
 
         for (int k = 0; k < C; k++) {
-            float norm = (shared[i] - m) * r;
-            float scaled = gamma[i] * norm + beta[i];
+            float norm = (shared[k] - m) * r;
+            float scaled = gamma[k] * norm + beta[k];
+            y[k] = scaled;
         }
        mean[idx] = m;
        rstd[idx] = r;
