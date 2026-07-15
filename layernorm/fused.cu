@@ -103,7 +103,7 @@ __global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __rest
         }
         __syncthreads();
 
-        for (int j = threadIdx.x; j < C; j++) {
+        for (int j = threadIdx.x; j < C; j+=blockDim.x) {
             fused.sum += shared[j];
             fused.sumSQ += shared[j] * shared[j];
         }
