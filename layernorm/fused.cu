@@ -84,7 +84,7 @@ __device__ __forceinline__ float blockReduc(float val, float* reducBuf) {
 template <const int numThreads = 256> 
 
 __global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __restrict__ out, float* __restrict__ rstd, 
-    float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C) {
+    float* __restrict__ mean, const float* __restrict__ gamma, const float* __restrict__ beta, int N, int C, float *reducBuf) {
         int idx = blockIdx.x;
         float eps = 1e-5f;
          
