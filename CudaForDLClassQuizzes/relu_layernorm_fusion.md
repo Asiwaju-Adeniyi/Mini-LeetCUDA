@@ -60,6 +60,3 @@ never leaves the register.
 - 1 read of gamma and beta
 - 1 write of the output row
 - 2 writes for mean and rstd
-
-Compare to separate LayerNorm + ReLU kernels which would read and write the entire 
-output row twice — once to store LayerNorm output, once to load it back for ReLU.
