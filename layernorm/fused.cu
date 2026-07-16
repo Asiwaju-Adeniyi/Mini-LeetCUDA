@@ -97,7 +97,7 @@ __global__ void blockFusedLayerNorm(const float* __restrict__ inp, float* __rest
         float* rowData = shared;           
         float* reducBuf = shared + C;     
 
-        if (idx >= N) {return;};
+        if (idx >= N) {return;}
 
         for (int i = threadIdx.x; i < C; i += blockDim.x) {
             shared[i] = x[i];
