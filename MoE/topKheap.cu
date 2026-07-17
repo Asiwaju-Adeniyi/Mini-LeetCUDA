@@ -10,10 +10,10 @@ struct IndexValue (
     float value;
     int index; 
 
-    __device__ __forceinline__ operator>(const IndexValue& other) const {
+    __device__ __forceinline__ bool operator>(const IndexValue& other) const {
         return value > other.value;
     }
-    __device__ __forceinline__ operator<(const IndexValue& other) const {
+    __device__ __forceinline__ bool operator<(const IndexValue& other) const {
         return value < other.value;
     }
 )
