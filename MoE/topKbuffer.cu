@@ -33,6 +33,4 @@ __global__ void topkBuffer(const float* __restrict__ input, float* __restrict__ 
                 }
             }
         
-        }
-
-        }
+        }}
