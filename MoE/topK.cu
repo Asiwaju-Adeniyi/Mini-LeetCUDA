@@ -6,7 +6,7 @@
 #include <vector>
 #include <iostream>
 
-__global__ void topk(const float* __restrict__ input, float *values, int *indices, int batch_size, int n, int k) {
+__global__ void topk(const float* __restrict__ input, float* __restrict__ values, int* __restrict__ indices, int batch_size, int n, int k) {
     int batch_idx = blockIdx.x;
 
     if (batch_idx < batch_size) {
