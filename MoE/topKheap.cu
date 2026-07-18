@@ -17,3 +17,13 @@ struct IndexValue (
         return value < other.value;
     }
 )
+
+
+__device__ __forceinline__ void heapify_down(IndexValue* heap, int k, int size) {
+    int smallest = k;
+    int left = 2 * k + 1;
+    int right = 2 * k + 2;
+
+    if (left < size && heap[left] < heap[smallest]) {smallest = left;}
+    if (right < size && heap[right] < heap[smallest]) {smallest = right;}
+}
