@@ -35,6 +35,9 @@ if (smallest != k) {
     heapify_down(heap, k, size);
 
 }
-    
+}
 
+
+__global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, float* value, int K, int N) {
+    
 }
