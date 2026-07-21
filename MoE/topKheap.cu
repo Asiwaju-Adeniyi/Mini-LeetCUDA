@@ -39,5 +39,18 @@ if (smallest != k) {
 
 
 __global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, float* value, int K, int N) {
+
+    extern __shared__ float heap[];
+
+    if (threadIdx.x < K) {
+        heap.value[threadIdx.x] = input[threadIdx.x];
+        heap.index[threadIdx.x] = input[threadIdx.x];
+    }
+
+    for (int i = K/2 - 1; i >= 0; --i) {
+        heapify_down(heap, i, K);
+    }
+
     
+
 }
