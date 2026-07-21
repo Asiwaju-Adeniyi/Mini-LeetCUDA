@@ -47,10 +47,11 @@ __global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, 
         heap.index[threadIdx.x] = input[threadIdx.x];
     }
 
-    for (int i = K/2 - 1; i >= 0; --i) {
+ if (threadIdx.x == 0) {for (int i = K/2 - 1; i >= 0; --i) {
         heapify_down(heap, i, K);
-    }
+    }}
 
-    
+ __syncthreads();
+
 
 }
