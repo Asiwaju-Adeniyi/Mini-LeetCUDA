@@ -6,7 +6,7 @@
 #include <vector>
 #include <iostream>
 
-struct IndexValue (
+struct IndexValue {
     float value;
     int index; 
 
@@ -16,7 +16,7 @@ struct IndexValue (
     __device__ __forceinline__ bool operator<(const IndexValue& other) const {
         return value < other.value;
     }
-)
+}
 
 
 __device__ __forceinline__ void heapify_down(IndexValue* heap, int k, int size) {
@@ -32,7 +32,7 @@ if (smallest != k) {
     heap[k] = heap[smallest];
     heap[smallest] = accum;
 
-    heapify_down(heap, k, size);
+    heapify_down(heap, smallest, size);
 
 }
 }
@@ -65,7 +65,7 @@ __global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, 
  }
  __syncthreads();
 
- 
+
  if (threadIdx.x < K) {
     input[threadIdx.x].value = heap[threadIdx.x].value;
     input[threadIdx.x].index = heap[threadIdx.x].index;
