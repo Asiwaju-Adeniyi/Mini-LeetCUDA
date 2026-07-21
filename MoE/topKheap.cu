@@ -40,7 +40,7 @@ if (smallest != k) {
 
 __global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, float* value, int K, int N) {
 
-    extern __shared__ float heap[];
+    extern __shared__ IndexValue heap[];
 
     if (threadIdx.x < K) {
         heap[threadIdx.x].value = input[threadIdx.x];
@@ -67,7 +67,7 @@ __global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, 
 
 
  if (threadIdx.x < K) {
-    input[threadIdx.x].value = heap[threadIdx.x].value;
-    input[threadIdx.x].index = heap[threadIdx.x].index;
+    values[threadIdx.x] = heap[threadIdx.x].value;
+    indices[threadIdx.x] = heap[threadIdx.x].index;
  }
 }
