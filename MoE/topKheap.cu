@@ -43,15 +43,31 @@ __global__ void topK_Heap(float* __restrict__ input, int* __restrict__ indices, 
     extern __shared__ float heap[];
 
     if (threadIdx.x < K) {
-        heap.value[threadIdx.x] = input[threadIdx.x];
-        heap.index[threadIdx.x] = input[threadIdx.x];
+        heap[threadIdx.x].value = input[threadIdx.x];
+        heap[threadIdx.x].index = threadIdx.x;
     }
 
- if (threadIdx.x == 0) {for (int i = K/2 - 1; i >= 0; --i) {
+ if (threadIdx.x == 0) {for (int i = K/2 - 1; i >= 0; i--) {
         heapify_down(heap, i, K);
     }}
 
  __syncthreads();
 
+ if (threadIdx.x == 0) {
+    for (int i = K; i < N; i++) {
+        if (input[i] > heap[0].value) {
+            heap[0].value = input[i];
+            heap[0].index = i;
 
+            heapify_down(heap, 0, K);
+        }
+    }
+ }
+ __syncthreads();
+
+ 
+ if (threadIdx.x < K) {
+    input[threadIdx.x].value = heap[threadIdx.x].value;
+    input[threadIdx.x].index = heap[threadIdx.x].index;
+ }
 }
