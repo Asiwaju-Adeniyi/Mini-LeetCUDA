@@ -10,6 +10,7 @@
 template <const int BK, const int BM, const int BN, const int TM>
 
 __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) {
+    
     const uint cRow = blockIdx.y;
     const uint cCol = blockIdx.x;
 
