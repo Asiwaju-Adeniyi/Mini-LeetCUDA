@@ -8,6 +8,10 @@
 #include <cmath> 
 
 #define CEIL_DIV(M, N) (((M) + (N)-1)/(N))
+#define half __half
+#define hadd __hadd
+#define hmul __hmul
+#define f2h __float2half
 
 template <const int BLOCKSIZE>
 
@@ -45,4 +49,25 @@ __global__ void shared_sgemm(int M, int N, int K, float* A, float *B, float *C) 
     C[threadRow * N + threadCol] = accum;  
 }
 
+template <const int BLOCKSIZE> 
+
+__global__ void hSharedGemm(half* __restrict__ A, half* __restrict__ B, half* __restrict__ C, int M, int N, int K) {
+    const uint cRow = blockIdx.x;
+    const int cCol = blockIdx.y; 
+
+    __shared__ half shared[BLOCKSIZE * BLOCKSIZE];
+
+    uint tRow = threadIdx.x / BLOCKSIZE;
+    uint tCol = threadIdx.x % BLOCKSIZE;
+
+    A += cRow * BLOCKSIZE * K; 
+    B += cCol * BLOCKSIZE; 
+    C += cRow * BLOCKSIZE * N + cCol * BLOCKSIZE;
+
+    half accum = f2h (0.0f);
+
+    for (int bkIdx = 0; bkIdx < K; bkIdx += BLOCKSIZE) {
+        
+    }
+}
 
