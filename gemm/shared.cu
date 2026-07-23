@@ -55,7 +55,8 @@ __global__ void hSharedGemm(half* __restrict__ A, half* __restrict__ B, half* __
     const uint cRow = blockIdx.x;
     const int cCol = blockIdx.y; 
 
-    __shared__ half shared[BLOCKSIZE * BLOCKSIZE];
+    __shared__ half sA[BLOCKSIZE * BLOCKSIZE];
+    __shared__ half sB[BLOCKSIZE * BLOCKSIZE];
 
     uint tRow = threadIdx.x / BLOCKSIZE;
     uint tCol = threadIdx.x % BLOCKSIZE;
@@ -67,7 +68,19 @@ __global__ void hSharedGemm(half* __restrict__ A, half* __restrict__ B, half* __
     half accum = f2h (0.0f);
 
     for (int bkIdx = 0; bkIdx < K; bkIdx += BLOCKSIZE) {
+        sA[tRow * BLOCKSIZE + tCol] = A[tRow * K + tCol];
+        sB[tRow * BLOCKSIZE + tCol] = B[tRow * K + tCol];
+        __syncthreads();
+
+        A += BLOCKSIZE;
+        B += BLOCKSIZE * N;
+
+        for (int dotIdx = 0; dotIdx < BLOCKSIZE; dotIdx++) {
+            accum = hadd(accum, hmul(sA[tRow * BLOCKSIZE + dotIdx], B[dotIdx * BLOCKSIZE + tCol]))
+        }
+        __syncthreads();
         
     }
+    C[cRow * K + cCol] = accum;
 }
 
