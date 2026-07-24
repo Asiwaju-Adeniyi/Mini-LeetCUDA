@@ -7,6 +7,12 @@
 #include <iostream>
 #include <cmath> 
 
+#define CEIL_DIV(M, N) (((M) + (N)-1)/(N))
+#define half __half
+#define hadd __hadd
+#define hmul __hmul
+#define f2h __float2half
+
 template <const int BK, const int BM, const int BN, const int TM>
 
 __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) {

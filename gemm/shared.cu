@@ -65,7 +65,7 @@ __global__ void hSharedGemm(half* __restrict__ A, half* __restrict__ B, half* __
     B += cCol * BLOCKSIZE; 
     C += cRow * BLOCKSIZE * N + cCol * BLOCKSIZE;
 
-    half accum = f2h (0.0f);
+    half accum = f2h(0.0f);
 
     for (int bkIdx = 0; bkIdx < K; bkIdx += BLOCKSIZE) {
         sA[tRow * BLOCKSIZE + tCol] = A[tRow * K + tCol];
