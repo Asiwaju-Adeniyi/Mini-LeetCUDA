@@ -23,8 +23,8 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
     const uint threadRow = threadIdx.x / BN;
     const uint threadCol = threadIdx.x % BN;
 
-    __shared__ void sA[BM * BK];
-    __shared__ void sB[BK * BN];
+    __shared__ float sA[BM * BK];
+    __shared__ float sB[BK * BN];
 
     static_assert((BM * BK) == blockIdx.x, "You sure?");
     static_assert((BN * BK) == blockIdx.x, "You damn sure?");
