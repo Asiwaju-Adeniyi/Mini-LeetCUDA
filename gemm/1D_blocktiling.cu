@@ -89,12 +89,27 @@ __global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict a, half
     half tResults[TM] = {half(0.0f)};
 
     for (int i = 0; i < K; i++) {
-        sA[threadRow * BK + threadCol] = A[threadRow * K + threadCol];
-        sB[threadRow * BN + threadCol] = B[threadRow * N + threadCol];
+        sA[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
+        sB[innerRowB * BN + innerColB] = B[innerRowA * N + innerColB];
+
+        __syncthreads();
 
         A += BK;
         B += cCol * BN; 
         C += cRow * BM * N + cCol * BN;
+
+        for (int dotIdx = 0; dotIdx < BK; dotIdx++) {
+            half accumB = sB[dotIdx * BN + threadCol];
+
+            for (int resIdx = 0; resIdx < TM; resIdx++) {
+                tResults[resIdx] = hadd(tResults[resIdx], hmul(sA[(threadRow * TM + resIdx) * BK + dotIdx], accumB));
+            }
+        }
+        __syncthreads();
+    }
+
+    for (int resIdx = 0; resIdx < TM; resIdx++) {
+        C[[threadRow * TM + resIdx] * N + threadCol] = tResults[resIdx];
     }
 
 
