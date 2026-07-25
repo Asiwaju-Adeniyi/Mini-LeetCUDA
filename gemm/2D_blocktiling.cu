@@ -17,7 +17,7 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
     const uint outputPB = BM * BN;
     const uint tpB = outputPB / TM * TN;
 
-    static_assert((tpB == blockDim.x), "You're a disappointment.");
+    static_assert((tpB == blockDim.x), "Not threads per block. Recheck!!");
 
     const uint threadRow = threadIdx.x / TM * TN;
     const uint threadCol = threadIdx.x % TM * TN;

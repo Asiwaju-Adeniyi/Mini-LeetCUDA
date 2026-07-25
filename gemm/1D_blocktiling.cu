@@ -39,7 +39,8 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
 
 
 
-    float accum[TM] = {0.0};
+    float accum[TM];
+    for (int i = 0; i < TM; i++) tResults[i] = f2h(0.0f);
 
         for (int bkIdx = 0; bkIdx < K; bkIdx++) {
             sA[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
@@ -67,7 +68,7 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
 
 template <const int BK, const int BM, const int BN, const int TM>
 
-__global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict a, half* __restrict__ b, half* __restrict__ c) {
+__global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict__ A, half* __restrict__ B, half* __restrict__ C) {
     const uint cRow = blockIdx.y;
     const uint cCol = blockIdx.x;
 
@@ -86,17 +87,17 @@ __global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict a, half
     __shared__ half sA[BM * BK];
     __shared__ half sB[BK * BN];
 
-    half tResults[TM] = {half(0.0f)};
+    half tResults[TM];
+        for (int i = 0; i < TM; i++) tResults[i] = f2h(0.0f);
 
-    for (int i = 0; i < K; i++) {
-        sA[innerRowA * BK + innerColA] = A[innerRowA * K + innerColA];
-        sB[innerRowB * BN + innerColB] = B[innerRowA * N + innerColB];
+    for (int i = 0; i < K; i += BK) {
+        sA[inRowA * BK + inColA] = A[inRowA * K + inColA];
+        sB[inRowB * BN + inColB] = B[inRowB * N + inColB];
 
         __syncthreads();
 
         A += BK;
-        B += cCol * BN; 
-        C += cRow * BM * N + cCol * BN;
+        B += BK * N; 
 
         for (int dotIdx = 0; dotIdx < BK; dotIdx++) {
             half accumB = sB[dotIdx * BN + threadCol];
@@ -109,8 +110,8 @@ __global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict a, half
     }
 
     for (int resIdx = 0; resIdx < TM; resIdx++) {
-        C[[threadRow * TM + resIdx] * N + threadCol] = tResults[resIdx];
+        C[(threadRow * TM + resIdx) * N + threadCol] = tResults[resIdx];
     }
-
-
 }
+
+
