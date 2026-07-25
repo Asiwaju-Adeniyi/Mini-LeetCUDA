@@ -74,5 +74,28 @@ __global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict a, half
     const uint threadCol = threadIdx.x % BN;
     const uint threadRow = threadIdx.x / BN;
 
+    const uint inRowA = threadIdx.x / BK;
+    const uint inColA = threadIdx.x % BK;
+    const uint inRowB = threadIdx.x / BN;
+    const uint inColB = threadIdx.x % BN;
     
+    A += cRow * BM * K;
+    B += cCol * BN;
+    C += cRow * BM * N + cCol * BN;
+
+    __shared__ half sA[BM * BK];
+    __shared__ half sB[BK * BN];
+
+    half tResults[TM] = {half(0.0f)};
+
+    for (int i = 0; i < K; i++) {
+        sA[threadRow * BK + threadCol] = A[threadRow * K + threadCol];
+        sB[threadRow * BN + threadCol] = B[threadRow * N + threadCol];
+
+        A += BK;
+        B += cCol * BN; 
+        C += cRow * BM * N + cCol * BN;
+    }
+
+
 }
