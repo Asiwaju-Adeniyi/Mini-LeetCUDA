@@ -64,3 +64,15 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
             C[(threadRow * TM + resIdx) * N + threadCol] = accum[resIdx];
         }
 }
+
+template <const int BK, const int BM, const int BN, const int TM>
+
+__global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict a, half* __restrict__ b, half* __restrict__ c) {
+    const uint cRow = blockIdx.y;
+    const uint cCol = blockIdx.x;
+
+    const uint threadCol = threadIdx.x % BN;
+    const uint threadRow = threadIdx.x / BN;
+
+    
+}
