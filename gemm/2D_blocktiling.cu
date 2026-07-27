@@ -112,6 +112,16 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
         B += cCol * BN;
         C += cRow * BM * N + cCol * BN;
 
+
+        for (int offsetA = 0; offsetA < BM; offsetA += strideA) {
+            sA[(innerRowA + offsetA) * BK + innerCol] = A[(innerRowA + offset) * K + innerColA];
+        }
+        for (int offsetB = 0; offsetB < BK; offsetB += strideB) {
+            sA[(innerRowB + offsetB) * BN + innerCol] = A[(innerRowB + offsetB) * N + innerColB];
+        }
+
+        __syncthreads();
+
         
     }
 
