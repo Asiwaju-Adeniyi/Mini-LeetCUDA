@@ -100,10 +100,19 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
         int innerRowB = threadIdx.x / BN;
         int innerColB = threadIdx.x % BN;
 
-        int tpB = 
+        const int tpB = (BM * BN) / (TM * TN);
+
+        const int strideA = tpB / BK;
+        const int strideB = tpB % BK;
 
         __shared__ half sA[BM * BK];
         __shared__ half sB[BK * BN];
+
+        A += cRow * BM * K;
+        B += cCol * BN;
+        C += cRow * BM * N + cCol * BN;
+
+        
     }
 
 
