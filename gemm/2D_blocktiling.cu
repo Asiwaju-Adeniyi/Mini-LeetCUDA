@@ -14,7 +14,7 @@
 #define f2h __float2half
 
 
-template <const int BK, const int BM, const int BN, const int TM, TN>
+template <const int BK, const int BM, const int BN, const int TM, const int TN>
 
 __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M, int N, int K, float *a, float *b, float *c) {
     const uint cRow = blockIdx.y;
@@ -86,11 +86,24 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
     }
 }
 
-
-__global__ void __launch_bound__ (BM * BN) / (TM * TN) Half_2D(int M, int N, int K, half* __restrict__ A, 
+template <const int BM, const int BK, const int BN, const int TM, const int TN>
+__global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N, int K, half* __restrict__ A, 
     half* __restrict__ B, half* __restrict__ C) {
         int cRow = blockIdx.y; 
         int cCol = blockIdx.x;
+
+        int threadRow = threadIdx.x / BN;
+        int threadCol = threadIdx.x % BN; 
+
+        int innerRowA = threadIdx.x / BK;
+        int innerColA = threadIdx.x % BK;
+        int innerRowB = threadIdx.x / BN;
+        int innerColB = threadIdx.x % BN;
+
+        int tpB = 
+
+        __shared__ half sA[BM * BK];
+        __shared__ half sB[BK * BN];
     }
 
 
