@@ -108,22 +108,64 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
         __shared__ half sA[BM * BK];
         __shared__ half sB[BK * BN];
 
+        half tResults[TM * TN]; 
+        half regTM[TM];
+        half regTN[TN];
+        for (int i = 0; i < TM; i++) {
+            for (int j = 0; j < TN; j++) {
+                tResults[i * TN + j] = f2h(0.0f);
+            }
+        }
+
         A += cRow * BM * K;
         B += cCol * BN;
         C += cRow * BM * N + cCol * BN;
 
 
+       for (int i = 0; i < K; i += BK) {
+        
         for (int offsetA = 0; offsetA < BM; offsetA += strideA) {
             sA[(innerRowA + offsetA) * BK + innerCol] = A[(innerRowA + offset) * K + innerColA];
         }
         for (int offsetB = 0; offsetB < BK; offsetB += strideB) {
-            sA[(innerRowB + offsetB) * BN + innerCol] = A[(innerRowB + offsetB) * N + innerColB];
+            sB[(innerRowB + offsetB) * BN + innerCol] = A[(innerRowB + offsetB) * N + innerColB];
         }
 
         __syncthreads();
 
+        A += BK;
+        B += BK * N;  
+
+        for (int dotIdx = 0; dotIdx < BK; dotIdx++) {
+            for (int i = 0; i < TM; i++) {
+                regTM[i] = sA[(threadRow * TM + i) * BK + dotIdx];
+            }
+
+            for (int j = 0; j < TN; j++) {
+                regTN[j] = sA[dotIdx * BN + threadCol * TN + i];
+            }
+            
+            
+        for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
+            for (resIdxN = 0; resIdxN < TN; resIdxN++) {
+                int flatIdx = resIdxM * TN + residxN;
+
+                tResults[flatIdx] = hadd(tResults[flatIdx], hmul(regM[resIdxM], regN[resIdxN]));
+            }
+        }
+        }
+
+
+
+
         
+        for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
+            for (resIdxN = 0; resIdxN < TN; resIdxN++) {
+                C[threadRow * ]
+            }
+
     }
+}
 
 
 
