@@ -7,6 +7,12 @@
 #include <iostream>
 #include <cmath> 
 
+#define CEIL_DIV(M, N) (((M) + (N)-1)/(N))
+#define half __half
+#define hadd __hadd
+#define hmul __hmul
+#define f2h __float2half
+
 
 template <const int BK, const int BM, const int BN, const int TM, TN>
 
@@ -79,3 +85,14 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
         }
     }
 }
+
+
+__global__ void __launch_bound__ (BM * BN) / (TM * TN) Half_2D(int M, int N, int K, half* __restrict__ A, 
+    half* __restrict__ B, half* __restrict__ C) {
+        int cRow = blockIdx.y; 
+        int cCol = blockIdx.x;
+    }
+
+
+
+
