@@ -86,6 +86,8 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
     }
 }
 
+/* Here is the fp16 version*/
+
 template <const int BM, const int BK, const int BN, const int TM, const int TN>
 __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N, int K, half* __restrict__ A, 
     half* __restrict__ B, half* __restrict__ C) {
@@ -128,7 +130,7 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
             sA[(innerRowA + offsetA) * BK + innerCol] = A[(innerRowA + offset) * K + innerColA];
         }
         for (int offsetB = 0; offsetB < BK; offsetB += strideB) {
-            sB[(innerRowB + offsetB) * BN + innerCol] = A[(innerRowB + offsetB) * N + innerColB];
+            sB[(innerRowB + offsetB) * BN + innerColB] = B[(innerRowB + offsetB) * N + innerColB];
         }
 
         __syncthreads();
@@ -142,19 +144,20 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
             }
 
             for (int j = 0; j < TN; j++) {
-                regTN[j] = sA[dotIdx * BN + threadCol * TN + i];
+                regTN[j] = sB[dotIdx * BN + threadCol * TN + j];
             }
             
             
         for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
-            for (resIdxN = 0; resIdxN < TN; resIdxN++) {
+            for (int resIdxN = 0; resIdxN < TN; resIdxN++) {
                 int flatIdx = resIdxM * TN + residxN;
 
-                tResults[flatIdx] = hadd(tResults[flatIdx], hmul(regM[resIdxM], regN[resIdxN]));
+                tResults[flatIdx] = hadd(tResults[flatIdx], hmul(regTM[resIdxM], regN[resIdxTN]));
             }
         }
-                __syncthreads();
         }
+
+        __syncthreads();
 
 
         
