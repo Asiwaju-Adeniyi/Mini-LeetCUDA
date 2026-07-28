@@ -154,6 +154,8 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
             }
         }
         }
+
+        __syncthreads();
         
         for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
             for (resIdxN = 0; resIdxN < TN; resIdxN++) {
