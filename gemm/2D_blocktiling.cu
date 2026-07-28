@@ -127,7 +127,7 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
        for (int i = 0; i < K; i += BK) {
         
         for (int offsetA = 0; offsetA < BM; offsetA += strideA) {
-            sA[(innerRowA + offsetA) * BK + innerCol] = A[(innerRowA + offset) * K + innerColA];
+            sA[(innerRowA + offsetA) * BK + innerColA] = A[(innerRowA + offsetA) * K + innerColA];
         }
         for (int offsetB = 0; offsetB < BK; offsetB += strideB) {
             sB[(innerRowB + offsetB) * BN + innerColB] = B[(innerRowB + offsetB) * N + innerColB];
@@ -150,24 +150,22 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
             
         for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
             for (int resIdxN = 0; resIdxN < TN; resIdxN++) {
-                int flatIdx = resIdxM * TN + residxN;
+                int flatIdx = resIdxM * TN + resIdxN;
 
-                tResults[flatIdx] = hadd(tResults[flatIdx], hmul(regTM[resIdxM], regN[resIdxTN]));
+                tResults[flatIdx] = hadd(tResults[flatIdx], hmul(regTM[resIdxM], regTN[resIdxN]));
             }
         }
         }
 
         __syncthreads();
+}
 
-
-        
         for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
             for (resIdxN = 0; resIdxN < TN; resIdxN++) {
                 C[(threadRow * TM + resIdxM) * N + threadCol * TN + resIdxN] = tResults[resIdxM * TN + resIdxN];
-            }
+           }
 
-    }
-} }
+    }}
 
 
 
