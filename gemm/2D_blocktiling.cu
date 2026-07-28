@@ -92,8 +92,8 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
         int cRow = blockIdx.y; 
         int cCol = blockIdx.x;
 
-        int threadRow = threadIdx.x / BN;
-        int threadCol = threadIdx.x % BN; 
+        int threadRow = threadIdx.x / (BN / TN);
+        int threadCol = threadIdx.x % (BN / TN); 
 
         int innerRowA = threadIdx.x / BK;
         int innerColA = threadIdx.x % BK;
@@ -103,7 +103,7 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
         const int tpB = (BM * BN) / (TM * TN);
 
         const int strideA = tpB / BK;
-        const int strideB = tpB % BK;
+        const int strideB = tpB / BN;
 
         __shared__ half sA[BM * BK];
         __shared__ half sB[BK * BN];
@@ -153,9 +153,10 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
                 tResults[flatIdx] = hadd(tResults[flatIdx], hmul(regM[resIdxM], regN[resIdxN]));
             }
         }
+                __syncthreads();
         }
 
-        __syncthreads();
+
         
         for (int resIdxM = 0; resIdxM < TM; resIdxM++) {
             for (resIdxN = 0; resIdxN < TN; resIdxN++) {
@@ -163,7 +164,7 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) Half_2D(int M, int N
             }
 
     }
-}
+} }
 
 
 
