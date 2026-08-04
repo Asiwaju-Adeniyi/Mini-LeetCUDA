@@ -8,6 +8,11 @@
 #include <cmath> 
 
 #define FLOAT4(val)(reinterpret_cast<float4 *> (&(value))[0])
+#define CEIL_DIV(M, N) (((M) + (N)-1)/(N))
+#define half __half
+#define hadd __hadd
+#define hmul __hmul
+#define f2h __float2half
 
 
 template <const int BK, const int BM, const int BN, const int TM, const int TN>

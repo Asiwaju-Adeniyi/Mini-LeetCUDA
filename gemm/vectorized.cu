@@ -12,4 +12,5 @@
 #define hadd __hadd
 #define hmul __hmul
 #define f2h __float2half
+#define FLOAT4(val) reinterpret_cast<float4*>(&(value)[0])
 
