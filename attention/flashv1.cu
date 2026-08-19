@@ -22,7 +22,15 @@ __device__ __forceinline__ void globalShared(uint32_t dst, __nvbfloat16 *src, in
        uint row = idx / Width;
        uint col = idx % Width;
 
+/* destination pointer definition is an integer literal because the ptx primitive cp.async for the shared memory state space requires a 32 bit addressing,
+this is why __cvta_generic_to_shared(sharedPointer) first does the conversion. The 32 bit is visible in the register allocation "r"(dstptr);  and this is because of the limited size of the
+shared memory. CUDA pointer size is naturally 64bits (inheriting from C++), but this is done because of memory constraints */
        const uint32_t dstPtr = dst + (row * Width + col) * sizeof(__nvbfloat16);
        const __nvbfloat16 *srcPtr = src + (row * stride + col);
+
+       asm volatile(
+           "cp.async.ca.shared.global [%0], [%1], %2;\n"
+           :: "r"(dstPtr), "l"(srcPtr), "n"(sizeof(__nvbfloat16))
+       );
     }
 }
