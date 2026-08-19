@@ -13,6 +13,7 @@ template <int Height, int Width, int Blocksize>
 __device__ __forceinline__ void globalShared(uint32_t dst, __nvbfloat16 *src, int stride, int tid) {
 
     constexpr int elemNum = 16 / sizeof(__nvbfloat16);
-    constexpr int iterNum = (Height * Width) / (Blocksize * elemNum);
+    static_assert(constexpr int iterNum = (Height * Width) / (Blocksize * elemNum), 
+    "Height * Width must be multiples of Blocksize * elemNum");
 
 }
