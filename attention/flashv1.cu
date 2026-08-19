@@ -29,8 +29,8 @@ shared memory. CUDA pointer size is naturally 64bits (inheriting from C++), but 
        const __nvbfloat16 *srcPtr = src + (row * stride + col);
 
        asm volatile(
-           "cp.async.ca.shared.global [%0], [%1], %2;\n"
-           :: "r"(dstPtr), "l"(srcPtr), "n"(sizeof(__nvbfloat16))
+           "cp.async.ca.shared.global [%0], [%1], 16;\n"
+           :: "r"(dstPtr), "l"(srcPtr)
        );
     }
 }
