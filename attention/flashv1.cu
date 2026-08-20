@@ -18,7 +18,7 @@ __device__ __forceinline__ void globalShared(uint32_t dst, __nvbfloat16 *src, in
     
     for (int i = 0; i < iterNum; ++i) {
 
-       uint idx = (i * Blocksize + tid) * numElem; 
+       uint idx = (i * Blocksize + tid) * elemNum; 
        uint row = idx / Width;
        uint col = idx % Width;
 
@@ -34,3 +34,5 @@ shared memory. CUDA pointer size is naturally 64bits (inheriting from C++), but 
        );
     }
 }
+
+
