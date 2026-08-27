@@ -7,7 +7,7 @@ material, page by page, with my own worked examples.
 | Section | Status | Last updated |
 |---|---|---|
 | 1.2 Canonical loops | done | 2026-08-24 |
-| 1.3 Tensors and folding | in progress | — |
+| 1.3 Tensors and folding | started | — |
 | 2.1 Tuples and HTuples | not started | — |
 ...
 
