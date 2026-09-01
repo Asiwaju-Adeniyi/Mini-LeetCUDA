@@ -30,7 +30,13 @@ Simple idea: It shows the different modes in operands before and after doing thr
 Row mode : this is present in A, absent in B, and present in C. 
 column mode : this is absent in A, present in B, and present in C. 
 reduction mode: present in A, present in B, and absent in C. 
-Batch mode: present in A, B, and C. 
+Batch/floor/width mode: present in A, B, and C. 
+
+Say we have a physical data of size 8 with each index containing letters a - h. We can describe it as a rank-3 tensor of a shape 2 x 2 x 2 with strides (2, 1, 4). 2 is the row step (mode 0), 1 is column step (row 1), and 4 is the batch step (mode 2). 
+
+If we fold mode 2 into mode 0, we can retain the step size, but with different layout but with the same strides declared differently. We'll get a 4 x 2 tensor of strides (2,1) but cute represenation ((2,2), 2) and strides ((2,4), 1). 
+
+It's quite different if we fold mode 2 into mode 1 because everything now gets muddled up because the column step sizes won't give us the original representation. However, Cute Algebra provides us with an elegant way of representing problematic tensors like that: we get a 2 x 4 tensor of representation (2, undefined) but with a cute representation of (2, (2,2)) and strides of (2, (1,4)). 
 
 ## 2. Layout representation
 ...
