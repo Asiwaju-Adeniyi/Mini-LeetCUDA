@@ -32,7 +32,7 @@ column mode : this is absent in A, present in B, and present in C.
 reduction mode: present in A, present in B, and absent in C. 
 Batch/floor/width mode: present in A, B, and C. 
 
-Say we have a physical data of size 8 with each index containing letters a - h. We can describe it as a rank-3 tensor of a shape 2 x 2 x 2 with strides (2, 1, 4). 2 is the row step (mode 0), 1 is column step (row 1), and 4 is the batch step (mode 2). 
+Say we have a physical data of size 8 with each index containing letters a - h. We can describe it as a rank-3 tensor of a shape 2 x 2 x 2 with strides (2, 1, 4). 2 is the row step (mode 0), 1 is column step (mode 1), and 4 is the batch step (mode 2). 
 
 If we fold mode 2 into mode 0, we can retain the step size, but with different layout but with the same strides declared differently. We'll get a 4 x 2 tensor of strides (2,1) but cute represenation ((2,2), 2) and strides ((2,4), 1). 
 
