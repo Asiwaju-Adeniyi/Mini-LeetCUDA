@@ -8,7 +8,7 @@ material, page by page, with my own worked examples.
 |---|---|---|
 | 1.2 Canonical loops | done | 2026-08-24 |
 | 1.3 Tensors and folding | started | — |
-| 2.1 Tuples and HTuples | not started | — |
+| 2.1 Tuples and HTuples | started | — |
 ...
 
 ## 1. Introduction and motivation
@@ -36,7 +36,8 @@ Say we have a physical data of size 8 with each index containing letters a - h. 
 
 If we fold mode 2 into mode 0, we can retain the step size, but with different layout but with the same strides declared differently. We'll get a 4 x 2 tensor of strides (2,1) but cute represenation ((2,2), 2) and strides ((2,4), 1). 
 
-It's quite different if we fold mode 2 into mode 1 because everything now gets muddled up because the column step sizes won't give us the original representation. However, Cute Algebra provides us with an elegant way of representing problematic tensors like that: we get a 2 x 4 tensor of representation (2, undefined) but with a cute representation of (2, (2,2)) and strides of (2, (1,4)). 
+It's quite different if we fold mode 2 into mode 1 because walking through the four glued offsets gives jumps of +1, +3, +1, not a constant step, which is precisely why no single flat number can exist. However, Cute Algebra provides us with an elegant way of representing problematic tensors like that: we get a 2 x 4 tensor of representation (2, undefined) but with a cute representation of (2, (2,2)) and strides of (2, (1,4)). 
 
 ## 2. Layout representation
+# Tuples 
 ...
