@@ -39,5 +39,5 @@ If we fold mode 2 into mode 0, we can retain the step size, but with different l
 It's quite different if we fold mode 2 into mode 1 because walking through the four glued offsets gives jumps of +1, +3, +1, not a constant step, which is precisely why no single flat number can exist. However, Cute Algebra provides us with an elegant way of representing problematic tensors like that: we get a 2 x 4 tensor of representation (2, undefined) but with a cute representation of (2, (2,2)) and strides of (2, (1,4)). 
 
 ## 2. Layout representation
-# Tuples 
+### Tuples 
 ...
