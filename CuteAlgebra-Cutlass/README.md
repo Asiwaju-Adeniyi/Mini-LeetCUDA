@@ -40,6 +40,20 @@ It's quite different if we fold mode 2 into mode 1 because walking through the f
 
 ## 2. Layout representation
 ### Tuples 
-A tuple, Tuple(T), is an ordered list of elements, all drawn from the same set T, where position (not differing properties) is what distinguishes one entry from another — say for a shape, T = Z⁺ (positive integers). Two operations: rank(X) is how many modes (dimensions) the tuple has; X_i is the entry at mode i (for 0 ≤ i < rank(X)).
+A tuple, Tuple(T), is an ordered list of elements, all drawn from the same set T, where position (not differing properties) is what distinguishes one entry from another — say for a shape, T = Z⁺ (positive integers). Two operations: rank(X) is how many modes (dimensions) the tuple has hence it's the length(n) of the tuple; and accessor X_i is the entry at mode i (for 0 ≤ i < rank(X)).
 Example: my fold-1 shape (4,2) is a Tuple(Z⁺) with rank((4,2)) = 2, X_0 = 4 (row), X_1 = 2 (column).
+
+### HTuples 
+These are almost like Tuples, but can be nested. This introduces another characterisitic called DEPTH.
+
+All the below conditions hold if X is a tuple. 
+
+Rand(X) of an HTuple is it's length(n) the numbers of elements in the tuples. If it's just one element, then the rank is 1. Xi is the location of each entry in the tuple as we start counting for zero (hence the math notation 0 less than or equal to X and X less than or equal to X's rank). 
+
+Then Depth: this is 1 + max(depth(X0), depth(X1), ..., depth(Xn-1)), if we have only one element then the depth is 1. 
+
+Examples: rank(((4,6),(3,(2,2),8))) has rank 2. It's depth is 3 and determined thus: depth = 3. The deepest chain is: root (3,(2,2),8) to (2,2) to ordinary numbers. That's 3 levels of "tuple containing a tuple" before one hits a plain number, which is exactly why it beats out the other branch, (4,6), which only goes one level deep. Depth tracks the worst-case nesting, not the average.
+
+depth(((2,2), 2)): depth = 2. root (2,2) to bare numbers, that's the deep side; the other slot, plain 2, is already a leaf. 1 + max(1, 0) = 2.
+
 ...
