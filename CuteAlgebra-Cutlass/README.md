@@ -40,6 +40,6 @@ It's quite different if we fold mode 2 into mode 1 because walking through the f
 
 ## 2. Layout representation
 ### Tuples 
-A tuple, Tuple(T), is an ordered list of elements picked from a set T — for a shape, T = Z⁺ (positive integers). Two operations: rank(X) is how many modes (dimensions) the tuple has; X_i is the entry at mode i (for 0 ≤ i < rank(X)).
+A tuple, Tuple(T), is an ordered list of elements, all drawn from the same set T, where position (not differing properties) is what distinguishes one entry from another — say for a shape, T = Z⁺ (positive integers). Two operations: rank(X) is how many modes (dimensions) the tuple has; X_i is the entry at mode i (for 0 ≤ i < rank(X)).
 Example: my fold-1 shape (4,2) is a Tuple(Z⁺) with rank((4,2)) = 2, X_0 = 4 (row), X_1 = 2 (column).
 ...
