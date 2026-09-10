@@ -124,3 +124,24 @@ Tuple case is identical in both. The whole difference is the leaf case:
 weak congruence's leaf is a structural wildcard (no numbers checked);
 compatibility's leaf demands an actual size match.
 
+**Worked examples, from the text:**
+- `30 ⪯ (2,15)`: `30 = |(2,15)| = 30` ✓ (leaf vs. total size).
+- `(2,15) ⪯ (2,(3,5))`: slot 0: `2=|2|` ✓; slot 1: `15=|(3,5)|=15` ✓.
+- `(2,(3,5))` and `((3,2),5)`, same size (30) both ways, but NOT compatible:
+  checking one direction, slot 0 needs `2=|(3,2)|=6` — fails.
+
+**Compatibility vs. weak congruence — genuinely independent, proven both ways:**
+- `30 ⪯ ((3,2),5)` (sizes match: `30=6×5`) but `((3,2),5) ≴ 30` — top level
+  is tuple-vs-leaf, a structural mismatch weak congruence can't get past
+  (compatible, not weakly congruent).
+- `(7,10) ≲ ((2,3),5)` (both of `(7,10)`'s slots are leaves → auto-pass,
+  structure never even inspects `S`) but `(7,10) ⪯̸ ((2,3),5)` — slot 0
+  needs `7=|(2,3)|=6`, fails (weakly congruent, not compatible).
+
+Neither relation implies the other. One checks nesting shape, the other
+checks element counts.
+
+**Ties to my own fold examples:** `(4,2) ⪯ ((2,2),2)` and `(2,4) ⪯
+(2,(2,2))` — **both** compatible, since folding never changes total size.
+Compatibility says nothing about whether a flat stride exists — that's a
+*stride* fact (Fig. 1's `✗`), not a *shape* fact.
