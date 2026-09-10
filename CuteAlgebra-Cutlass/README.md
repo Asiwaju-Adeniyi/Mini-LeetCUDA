@@ -10,7 +10,7 @@ material, page by page, with my own worked examples.
 | 1.3 Tensors and folding | done |  |
 | 2.1 Tuples and HTuples | done |  |
 | 2.2 Shape | done |  |
-| 2.2.1 Coordinate Sets | Ongoing |  |
+| 2.2.1 Coordinate Sets/Compatibility | Ongoing |  |
 ...
 
 ## 1. Introduction and motivation
@@ -108,5 +108,19 @@ Other coordinate sets are valid for the same data too — any shape that
 already saw with box `f`: `(i0,i1,i2)`, `(r,i1)`, and `k` were three
 different shapes' natural coordinates, all describing the same box.
 
-*"Compatibility" (Def 2.7) is mentioned but not defined yet — coming up
-next.*
+### 2.2.1 Compatibility (Def 2.7)
+
+Compatibility (`⪯`) looks like weak congruence's twin — same coarsen/refine
+language, same partial-order shape — but it checks something different:
+**size**, not nesting structure.
+
+Base case is where the two relations actually diverge:
+| | Weak congruence (≲) | Compatibility (⪯) |
+|---|---|---|
+| P is a leaf | auto-pass, S can be anything | P must **equal `\|S\|`** — real arithmetic |
+| P, S both tuples | same rank, recurse per slot | same rank, recurse per slot |
+
+Tuple case is identical in both. The whole difference is the leaf case:
+weak congruence's leaf is a structural wildcard (no numbers checked);
+compatibility's leaf demands an actual size match.
+
