@@ -1,38 +1,27 @@
-#include <algorithm> 
-#include <float.h>
-#include <cuda_runtime.h>
-#include <stdio.h>
-#include <cuda_bf16.h>
-#include <stdlib.h> 
-#include <vector>
-#include <iostream>
-#include <cmath>
+template <typename StorageT, typename AccumT, int HeadDimCT>
+void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
+                       StorageT const *qGlobal, StorageT const *kGlobal,
+                       StorageT *vGlobal, StorageT *sGlobal, StorageT *oGlobal,
+                       AccumT *rowMaxOut, AccumT *rowSumOut, int iterations,
+                       float scale, cudaStream_t stream = 0) {
+  using namespace cute;
 
-template <int Height, int Width, int Blocksize>
+  // runtime problem sizes
+  auto batch    = int(batchSize);
+  auto heads    = int(numHeads);
+  auto qRows    = int(numQueries);
+  auto kRows    = int(numKeys);
+  auto headDim  = int(HeadDimCT);
 
-__device__ __forceinline__ void globalShared(uint32_t dst, __nvbfloat16 *src, int stride, int tid) {
+  // compile-time tile sizes
+  using TileQ = Int<kQueriesPerBlock>;
+  using TileK = Int<kKeysPerBlock>;
+  using TileD = Int<HeadDimCT>;
 
-    constexpr int elemNum = 16 / sizeof(__nvbfloat16);
-    static_assert(constexpr int iterNum = (Height * Width) / (Blocksize * elemNum), 
-    "Height * Width must be multiples of Blocksize * elemNum");
-    
-    for (int i = 0; i < iterNum; ++i) {
-
-       uint idx = (i * Blocksize + tid) * elemNum; 
-       uint row = idx / Width;
-       uint col = idx % Width;
-
-/* destination pointer definition is an integer literal because the ptx primitive cp.async for the shared memory state space requires a 32 bit addressing,
-this is why __cvta_generic_to_shared(sharedPointer) first does the conversion. The 32 bit is visible in the register allocation "r"(dstptr);  and this is because of the limited size of the
-shared memory. CUDA pointer size is naturally 64bits (inheriting from C/C++), but this is done because of memory constraints */
-       const uint32_t dstPtr = dst + (row * Width + col) * sizeof(__nvbfloat16);
-       const __nvbfloat16 *srcPtr = src + (row * stride + col);
-
-       asm volatile(
-           "cp.async.ca.shared.global [%0], [%1], 16;\n"
-           :: "r"(dstPtr), "l"(srcPtr)
-       );
-    }
-}
+  using OperandA = StorageT;
+  using OperandB = StorageT;
+  using Accumulator = AccumT; 
 
 
+  
+  
