@@ -145,3 +145,19 @@ checks element counts.
 (2,(2,2))` — **both** compatible, since folding never changes total size.
 Compatibility says nothing about whether a flat stride exists — that's a
 *stride* fact (Fig. 1's `✗`), not a *shape* fact.
+
+### 2.2.1 (cont'd) — Z(S), the set of compatible coordinate sets (Def 2.8)
+
+`Z(S)` collects *every* legal coordinate-naming-scheme for a shape `S` —
+one entry for each shape `S'` that coarsens `S` (`S' ⪯ S`), taking that
+scheme's own natural coordinates `Z_S'`.
+
+Two entries are always guaranteed:
+- fully flat: `{0,...,|S|-1}` (the bare leaf `|S|` always coarsens `S`)
+- top-level-only: sizes of `S`'s outer slots, ignoring internal nesting
+
+For my fold-1 shape `((2,2),2)`: `Z(((2,2),2)) = {Z_8, Z_(4,2),
+Z_((2,2),2)}` — exactly the fully-flat (`k=5`), partly-combined
+(`(r,i1)=(2,1)`), and fully-refined (`(i0,i1,i2)=(0,1,1)`) names for the
+same box `f`.
+

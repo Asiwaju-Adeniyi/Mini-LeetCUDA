@@ -20,7 +20,7 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
 
   using OperandA = StorageT;
   using OperandB = StorageT;
-  using Accumulator = AccumT; 
+  using Accumulator = AccumT; }
 
 
   
