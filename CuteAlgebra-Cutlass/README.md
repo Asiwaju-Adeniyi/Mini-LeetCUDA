@@ -161,3 +161,32 @@ Z_((2,2),2)}` — exactly the fully-flat (`k=5`), partly-combined
 (`(r,i1)=(2,1)`), and fully-refined (`(i0,i1,i2)=(0,1,1)`) names for the
 same box `f`.
 
+If `P ⪯ S`, then `Z(P) ⊆ Z(S)` — follows directly from `⪯` being
+transitive (anything coarsening `P` also coarsens `S`).
+
+**Naming vs. computing an address are separate questions.** Fold-2's shape
+`(2,(2,2))` still has `(2,4)` on its list of valid coordinate names (top
+sizes are 2 and 4) — even though Figure 1 showed no flat *stride* exists
+for it. A coordinate is just a legal name; whether that name comes with a
+one-number way to compute a memory offset is a separate, later concern.
+
+### 2.2.2 Coordinates (Def 2.9)
+
+A coordinate for `S` is any value drawn from *any one* scheme in `Z(S)` —
+not just the fully-refined one. Coordinates are `HTuple(N)` (natural
+numbers, can be 0) — distinct from shapes, which are `HTuple(Z⁺)` (sizes
+can't be 0).
+
+Being "in-bounds" needs **two** checks, both required:
+1. matches some scheme's rank/nesting (right *shape*)
+2. every value sits inside that scheme's actual range (right *magnitude*)
+
+Worked on `((2,2),2)` (all three modes have size 2, so refined coordinates
+only ever range over `{0,1}`):
+- `3` ✓ — valid in the fully-flat scheme (`0..7`)
+- `(0,1)` ✓ — valid in the partly-combined scheme (`r<4, i1<2`)
+- `(1,2,0)` ✗ — right shape (a triple), but `i1=2` overshoots its range
+- `(1,0,2)` ✗ — same failure, `i2=2` overshoots
+
+**Lesson:** matching the nesting profile is not the same as being in
+range — both a real coordinate needs both.
