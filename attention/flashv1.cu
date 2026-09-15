@@ -22,7 +22,6 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
   using OperandB = StorageT;
   using Accumulator = AccumT; 
 
-}
 
 auto tileShapeQ = make_shape(TileQ{}, TileD{});
 auto smemLayoutQ =
@@ -30,9 +29,14 @@ auto smemLayoutQ =
 Layout gmemLayoutQ =
     make_layout(make_shape(qRows, headDim, heads, batch),
                 make_stride(headDim * heads, 1, headDim, heads * qRows * headDim));
-Tensor qGmemTensor = make_tensor(qPtr, gmemLayoutQ);
+Tensor qGmemTensor = make_tensor(qGlobal, gmemLayoutQ);
 auto tmaQ =
     make_tma_copy(SM90_TMA_LOAD{}, qGmemTensor, smemLayoutQ, tileShapeQ, Int<1>{});
+
+    
+
+}
+
 
 
   
