@@ -23,15 +23,14 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
   using Accumulator = AccumT; 
 
 
-auto tileShapeQ = make_shape(TileQ{}, TileD{});
-auto smemLayoutQ =
+    auto tileShapeQ = make_shape(TileQ{}, TileD{});
+    auto smemLayoutQ =
     tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandA>{}, tileShapeQ);
-Layout gmemLayoutQ =
+    Layout gmemLayoutQ =
     make_layout(make_shape(qRows, headDim, heads, batch),
-                make_stride(headDim * heads, 1, headDim, heads * qRows * headDim));
-Tensor qGmemTensor = make_tensor(qGlobal, gmemLayoutQ);
-auto tmaQ =
-    make_tma_copy(SM90_TMA_LOAD{}, qGmemTensor, smemLayoutQ, tileShapeQ, Int<1>{});
+    ake_stride(headDim * heads, 1, headDim, heads * qRows * headDim));
+    Tensor qGmemTensor = make_tensor(qGlobal, gmemLayoutQ);
+    auto tmaQ =make_tma_copy(SM90_TMA_LOAD{}, qGmemTensor, smemLayoutQ, tileShapeQ, Int<1>{});
 
     auto tileShapeK = make_shape(TileK{}, TileD{});
     auto smemLayoutK = tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandB>{}, tileShapeK);
