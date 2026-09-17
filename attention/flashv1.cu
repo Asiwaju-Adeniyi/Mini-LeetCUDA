@@ -38,7 +38,7 @@ auto tmaQ =
     Layout gmemLayoutK = make_layout(make_shape(kRows, headDim, heads, batch), 
     make_stride(1, headDim, headDim * heads, kRows * headDim * heads));
     Tensor kGmemTensor = make_tensor(kGlobal, gmemLayoutK); 
-    auto tmaK = make_tma_copy(SM90_TMA_LOAD{}, kGmemTensor, smemLayoutQ, tileShapeK, Int<1>);
+    auto tmaK = make_tma_copy(SM90_TMA_LOAD{}, kGmemTensor, smemLayoutK, tileShapeK, Int<1>{});
 
 }
 
