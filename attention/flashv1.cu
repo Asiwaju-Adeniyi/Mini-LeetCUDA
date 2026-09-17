@@ -36,7 +36,7 @@ auto tmaQ =
     auto tileShapeK = make_shape(TileK{}, TileD{});
     auto smemLayoutK = tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandB>{}, tileShapeK);
     Layout gmemLayoutK = make_layout(make_shape(kRows, headDim, heads, batch), 
-    make_stride(1, headDim, headDim * heads, kRows * headDim * heads));
+    make_stride(headDim * heads, 1, headDim, kRows * headDim * heads));
     Tensor kGmemTensor = make_tensor(kGlobal, gmemLayoutK); 
     auto tmaK = make_tma_copy(SM90_TMA_LOAD{}, kGmemTensor, smemLayoutK, tileShapeK, Int<1>{});
 
