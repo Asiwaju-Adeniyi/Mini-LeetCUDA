@@ -221,3 +221,20 @@ Round-trip check on `(4,20)`: `idx2crd(13) = (1,3)`, and
 `crd2idx((1,3)) = 1 + 3×4 = 13`. Also: `crd2idx((3,19)) = 3 + 19×4 = 79 =
 |S|-1` — the last coordinate always maps to the last flat index.
 
+**Admissible (2.12) vs. out-of-bounds (2.13):**
+- admissible = right *profile* (weakly congruent to `S`) — doesn't check
+  actual value ranges yet
+- out-of-bounds = admissible, but the values overshoot their actual range
+  (admissible minus in-bounds)
+
+Worked on the **flat** shape `(2,2,2)` (three separate modes, each size 2
+— not the grouped `((2,2),2)`, per the trap above): `(1,2,0)` and `(1,0,2)`
+are both admissible (correct triple profile, congruent to `(2,2,2)`) but
+out-of-bounds — `i1=2` and `i2=2` respectively overshoot the actual range
+`{0,1}` for that shape.
+
+**Lesson, stated plainly:** checking a coordinate needs three things in
+order — (1) does it match some shape's *nesting* (admissible/weakly
+congruent), (2) is that shape actually the one in question (or a real
+member of `Z(S)`), (3) are the *values* in range (in-bounds). Skipping
+step 2 is exactly what made `(1,1,1)` look valid when it wasn't.
