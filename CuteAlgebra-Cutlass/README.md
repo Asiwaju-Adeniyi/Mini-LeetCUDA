@@ -190,3 +190,34 @@ only ever range over `{0,1}`):
 
 **Lesson:** matching the nesting profile is not the same as being in
 range — both a real coordinate needs both.
+
+### 2.2.2 (cont'd) — Integral/natural coordinates, idx2crd, admissibility
+
+**Integral coordinate (2.10):** a coordinate drawn from `Z_|S|` — always a
+bare flat number. E.g. `13` for shape `(4,20)`.
+
+**Natural coordinate (2.11):** a coordinate drawn from `Z_S` — matches `S`'s
+*exact* nesting, congruent to `S`. For `S=((2,2),2)`, the natural
+coordinate has to follow the same brackets: `((i0,i2), i1)`, not a flat
+triple.
+
+**Trap caught by hand:** `(1,1,1)` looks plausible but is **not** admissible
+for `((2,2),2)` — it's a flat triple (3 top-level slots) while `S` has only
+2 top-level slots (`(2,2)` and `2`). Rank mismatch fails weak congruence
+immediately, before any values are even checked. The plain shape `(2,2,2)`
+and the grouped shape `((2,2),2)` total the same size (8) but have
+different top-level splits (`2×2×2` vs `4×2`) — same trap as `2×15` vs
+`6×5` from compatibility, one level up. The correctly-shaped natural
+coordinate for box `d` (row=1, col=1, floor=0) is `((1,0), 1)`.
+
+**idx2crd / crd2idx — my own day-one method, generalized.** `idx2crd` is
+exactly `k → (i,j)` via mod/floor-div, extended to any number of modes
+using the running product of preceding sizes as each step's divisor.
+`crd2idx` is the reverse: multiply each coordinate by the running product
+of everything before it, then sum — literally the "stride = running
+product of preceding sizes" pattern I derived on my own back in 1.2.
+
+Round-trip check on `(4,20)`: `idx2crd(13) = (1,3)`, and
+`crd2idx((1,3)) = 1 + 3×4 = 13`. Also: `crd2idx((3,19)) = 3 + 19×4 = 79 =
+|S|-1` — the last coordinate always maps to the last flat index.
+

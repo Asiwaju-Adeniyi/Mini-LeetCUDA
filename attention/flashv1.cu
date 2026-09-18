@@ -24,11 +24,9 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
 
 
     auto tileShapeQ = make_shape(TileQ{}, TileD{});
-    auto smemLayoutQ =
-    tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandA>{}, tileShapeQ);
-    Layout gmemLayoutQ =
-    make_layout(make_shape(qRows, headDim, heads, batch),
-    ake_stride(headDim * heads, 1, headDim, heads * qRows * headDim));
+    auto smemLayoutQ = tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandA>{}, tileShapeQ);
+    Layout gmemLayoutQ = make_layout(make_shape(qRows, headDim, heads, batch),
+    make_stride(headDim * heads, 1, headDim, heads * qRows * headDim));
     Tensor qGmemTensor = make_tensor(qGlobal, gmemLayoutQ);
     auto tmaQ =make_tma_copy(SM90_TMA_LOAD{}, qGmemTensor, smemLayoutQ, tileShapeQ, Int<1>{});
 
@@ -46,6 +44,14 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     make_stride(headDim * heads, 1, headDim, kRows * headDim * heads));
     Tensor vGmemTensor = make_tensor(vGlobal, gmemLayoutV);
     auto tmaV = make_tma_copy(SM90_TMA_LOAD{}, vGmemTensor, smemLayoutV, tileShapeV, Int<1>{});
+
+    #ifndef CTA256
+    using WarpgroupCount = Layout<Shape<_2, _1, _1>>;
+    #else
+    using WarpgroupCount = Layout<Shape<_1, _1, _1>>;
+    #endif
+
+    
 }
 
 
