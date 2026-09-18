@@ -1,5 +1,3 @@
-
-
 #include <float.h>
 #include <cuda_runtime.h>
 #include <stdlib.h> 
@@ -7,16 +5,18 @@
 #include <iostream>
 
 
-__global__ void dummy(const float *Q, const float *K, float *S){
+__global__ void dummy(const float *Q, const float *K, const float *V, float *O){
  int tid = threadIdx.x;
 
    __shared__ float sQ[16];
    __shared__ float sK[16];
    __shared__ float sS[4];
+   __shared__ float sV[16];
    int rowStart{0}; 
 
    float rowMax = -INFINITY;
    float rowSum = {}; 
+   float A[8] = {};
     
         sQ[rowStart * 8 + tid] = Q[(rowStart) * 8 + tid];
         sQ[(rowStart + 1) * 8 + tid] = Q[(rowStart + 1) * 8 + tid];
@@ -30,7 +30,10 @@ __global__ void dummy(const float *Q, const float *K, float *S){
 
         sK[(rowStart) * 8 + tid] = K[kRowStart * 8 + tid];
         sK[(rowStart + 1) * 8 + tid] = K[(kRowStart + 1) * 8 + tid];
-         
+
+        sV[rowStart * 8 + tid] = V[kRowStart * 8 + tid];
+        sV[(rowStart + 1) * 8 + tid] = V[(kRowStart + 1) * 8 + tid];
+
          __syncthreads();
 
          if (tid < 4) {for (int i = 0; i < 8; i++) {
@@ -43,12 +46,7 @@ __global__ void dummy(const float *Q, const float *K, float *S){
           __syncthreads();
 
           if (tid == 0) {
-            if (kRowStart == 0) {
-                rowMax = fmaxf(sS[0], sS[1]);
-                rowSum = expf(sS[0] - rowMax) + expf(sS[1] - rowMax);
-            }
 
-            else{
                 float oldMax = rowMax;
                 float tileMax = fmaxf(sS[0], sS[1]);
                 float newMax = fmaxf(oldMax, tileMax);
@@ -56,18 +54,16 @@ __global__ void dummy(const float *Q, const float *K, float *S){
 
                 rowSum = rowSum * scale + expf(sS[0] - newMax) + expf(sS[1] - newMax);
 
+                for (int d = 0; d < 8; d++) {
+                    A[d] = A[d] * scale + (expf(sS[0] - newMax) * sV[d]) + (expf(sS[1] - newMax) * sV[d + 8]);
+                }
+
                 rowMax = newMax;
-            }
+
+
           }
 
           if (tid == 2){
-
-                if (kRowStart == 0) {
-                rowMax = fmaxf(sS[2], sS[3]);
-                rowSum = expf(sS[2] - rowMax) + expf(sS[3] - rowMax);
-            }
-
-            else {
                 float oldMax = rowMax;
                 float tileMax = fmaxf(sS[2], sS[3]);
                 float newMax = fmaxf(oldMax, tileMax);
@@ -75,26 +71,33 @@ __global__ void dummy(const float *Q, const float *K, float *S){
 
                 rowSum = rowSum * scale + expf(sS[2] - newMax) + expf(sS[3] - newMax);
 
-                rowMax = newMax;
+                    for (int d = 0; d < 8; d++) {
+                    A[d] = A[d] * scale + (expf(sS[2] - newMax) * sV[d]) + (expf(sS[3] - newMax) * sV[d + 8]);
+                    
             }
+            rowMax = newMax;
 
           }
 
-                      __syncthreads();
-
           }
 
+            __syncthreads();
 
-    if (tid == 0) {
-    printf("row 0: max=%f sum=%f\n", rowMax, rowSum);
+if (tid == 0) {
+    for (int d = 0; d < 8; d++) {
+        O[0 * 8 + d] = A[d] / rowSum;
+    }
 }
 
 if (tid == 2) {
-    printf("row 1: max=%f sum=%f\n", rowMax, rowSum);
+    for (int d = 0; d < 8; d++) {
+        O[1 * 8 + d] = A[d] / rowSum;
+    }
 }
 
 return;
 }
+
 
 int main() {
     int N = 2 * 8;
