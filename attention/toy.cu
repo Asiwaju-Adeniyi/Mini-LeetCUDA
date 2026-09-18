@@ -17,6 +17,7 @@ __global__ void dummy(const float *Q, const float *K, const float *V, float *O){
    float rowMax = -INFINITY;
    float rowSum = {}; 
    float A[8] = {};
+   float D{8.f};
     
         sQ[rowStart * 8 + tid] = Q[(rowStart) * 8 + tid];
         sQ[(rowStart + 1) * 8 + tid] = Q[(rowStart + 1) * 8 + tid];
@@ -40,7 +41,7 @@ __global__ void dummy(const float *Q, const float *K, const float *V, float *O){
                accum += sQ[tRow * 8 + i] * sK[tCol * 8 + i];
          }
          
-         sS[tRow * 2 + tCol] = accum;
+         sS[tRow * 2 + tCol] = accum * rsqrtf(D);
          };
 
           __syncthreads();
