@@ -50,7 +50,9 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     #else
     using WarpgroupCount = Layout<Shape<_1, _1, _1>>;
     #endif
-
+   
+    using TiledMMaGemm1 = decltype(cute::make_tiled_mma_gemm(cute::GMMA::ss_op_selector<OperandA, OperandB, 
+      Accumulator, Shape<TileQ, TileK, TileD>(), WarpgroupCount{}>()));
     
 }
 
