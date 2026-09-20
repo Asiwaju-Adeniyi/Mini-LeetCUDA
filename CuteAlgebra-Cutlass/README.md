@@ -12,7 +12,7 @@ material, page by page, with my own worked examples.
 | 2.2 Shape | done |  |
 | 2.2.1 Coordinate Sets/Compatibility | done |  |
 | 2.2.2 Coordinates | done |  |
-| 2.3 Stride | Ongoing |  |
+| 2.3 Stride | done |  |
 
 ...
 
