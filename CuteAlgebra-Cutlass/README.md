@@ -241,3 +241,29 @@ order — (1) does it match some shape's *nesting* (admissible/weakly
 congruent), (2) is that shape actually the one in question (or a real
 member of `Z(S)`), (3) are the *values* in range (in-bounds). Skipping
 step 2 is exactly what made `(1,1,1)` look valid when it wasn't.
+
+### 2.3 Stride (Def 2.15)
+
+A stride is just a set of step-sizes, one per mode — and it must be
+**congruent** to its shape (Def 2.3): same nesting brackets, leaves filled
+with step-sizes instead of extents. My fold-1 `S=((2,2),2)` and
+`D=((2,4),1)` qualify by construction.
+
+`inner_product` is my own offset formula (`2×i0+1×i1+4×i2`, used since page
+one), made recursive: base case is plain multiply (`c·d`); the HTuple case
+recurses slot-by-slot and **sums** the results —
+`Σᵢ inner_product(cᵢ,dᵢ)`. Handles nested slots; reduces to the same plain
+arithmetic when everything's flat.
+
+**Verified on two boxes**, `S=((2,2),2)`, `D=((2,4),1)`:
+- box `e` (row0,col0,floor1), natural coord `((0,1),0)`:
+  `inner_product((0,1),(2,4)) + 0×1 = (0×2+1×4) + 0 = 4` ✓
+- box `g` (row1,col0,floor1), natural coord `((1,1),0)`:
+  `(1×2+1×4) + 0×1 = 6` ✓
+
+Both match the actual physical offsets — confirms the recursive formula is
+just the old arithmetic, generalized to handle nesting.
+
+*Note for later: strides don't have to be plain integers — `D` can be any
+"integer-semimodule" (e.g. coordinate-valued or XOR-valued), which is what
+enables swizzling later. Not needed yet.*
