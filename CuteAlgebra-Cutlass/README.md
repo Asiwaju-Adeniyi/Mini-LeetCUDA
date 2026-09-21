@@ -267,3 +267,30 @@ just the old arithmetic, generalized to handle nesting.
 *Note for later: strides don't have to be plain integers — `D` can be any
 "integer-semimodule" (e.g. coordinate-valued or XOR-valued), which is what
 enables swizzling later. Not needed yet.*
+
+### 2.3.1 Integer-semimodules (Def 2.16)
+
+Plain meaning: a set of things you're allowed to (1) **add together** and
+(2) **scale by a whole number**. Plain integers already qualify — you can
+add them and scale them. Pairs of numbers qualify too, using the same two
+operations, just componentwise.
+
+**e0 and e1** aren't derived from anything — they're just two hand-picked
+building-block pairs: `e0=(1,0)`, `e1=(0,1)`. The claim: *any* pair can be
+built from some number of copies of each, added together.
+
+My own check: build `(4,7)`.
+- `4×e0 = 4×(1,0) = (4,0)`
+- `7×e1 = 7×(0,1) = (0,7)`
+- `(4,0) + (0,7) = (4,7)` ✓ — 4 copies of `e0`, 7 copies of `e1`.
+
+**Why this matters for strides:** if a stride is built from `e0`/`e1`
+instead of plain numbers, `inner_product` no longer computes a memory
+offset — it hands back a *coordinate*. Worked example, shape `(3,2)`,
+stride `D=(e0, 2e1)`, coordinate `(2,1)`:
+
+`inner_product((2,1),(e0,2e1)) = 2·e0 + 1·(2e1) = (2,0) + (0,2) = (2,2)`
+
+Input `(2,1)` → output `(2,2)` — the `2e1` stride stretched the second
+slot by 2. (`D=(e0,e1)` alone would've echoed the input back unchanged —
+the "identity" case.)

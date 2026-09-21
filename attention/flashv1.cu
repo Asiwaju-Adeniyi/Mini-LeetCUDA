@@ -36,6 +36,7 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     make_stride(headDim * heads, 1, headDim, kRows * headDim * heads));
     Tensor kGmemTensor = make_tensor(kGlobal, gmemLayoutK); 
     auto tmaK = make_tma_copy(SM90_TMA_LOAD{}, kGmemTensor, smemLayoutK, tileShapeK, Int<1>{});
+    
 
     auto tileShapeV = make_shape(TileK{}, TileD{});
     auto smemLayoutV = tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandB>{}, tileShapeV);
@@ -51,7 +52,7 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     #endif
    
     using TiledMMaGemm1 = decltype(cute::make_tiled_mma_gemm(cute::GMMA::ss_op_selector<OperandA, OperandB, 
-      Accumulator, Shape<TileQ, TileK, TileD>(), WarpgroupCount{}>()));
+      Accumulator, Shape<TileQ, TileK, TileD>(), WarpgroupCount{}>()))
     
 }
 
