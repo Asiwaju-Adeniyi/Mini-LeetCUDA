@@ -13,6 +13,7 @@ material, page by page, with my own worked examples.
 | 2.2.1 Coordinate Sets/Compatibility | done |  |
 | 2.2.2 Coordinates | done |  |
 | 2.3 Stride | done |  |
+| 2.3.1 Integer Semimodules | done |  |
 
 ...
 
@@ -294,3 +295,28 @@ stride `D=(e0, 2e1)`, coordinate `(2,1)`:
 Input `(2,1)` → output `(2,2)` — the `2e1` stride stretched the second
 slot by 2. (`D=(e0,e1)` alone would've echoed the input back unchanged —
 the "identity" case.)
+### 2.3.1 (cont'd) — F2 = ({0,1}, XOR, AND)
+
+A tiny integer-semimodule: only two elements, `0` and `1`.
+
+- **"Adding" = XOR** — no mismatch to fix, since both inputs are always
+  already `0` or `1`. Checked associativity on `1,1,1`: `1⊕(1⊕1) = 1⊕0 = 1`
+  and `(1⊕1)⊕1 = 0⊕1 = 1` — same either way.
+- **"Scaling" = AND, but needs a shrink step first.** Scaling has a
+  mismatch: the scalar is *any* whole number, not automatically a member
+  of `{0,1}`. Fix: shrink the whole number to `0` or `1` by odd/even
+  (mod 2) *before* applying AND. Odd → shrinks to `1`. Even → shrinks to
+  `0`.
+
+Worked: `3·1` → 3 is odd → shrinks to `1` → `AND(1,1)=1`. `4·1` → even →
+shrinks to `0` → `AND(0,1)=0`. `5·1=1`. `6·0` → even → shrinks to `0` →
+`AND(0,0)=0`.
+
+**Why XOR never needs the shrink step:** both operands of an addition are
+*already* elements of `{0,1}` — never an outside whole number — so there's
+no mismatch to fix. Checked directly: `0⊕1⊕1` → `0⊕1=1`, `1⊕1=0`, never
+left `{0,1}` at any step.
+
+**Why it matters:** this is the same F2/XOR machinery behind Figure 1's
+"binary swizzle" example (`f1,f5,f16` strides) — the tool CUTE uses to
+describe scrambled, bank-conflict-avoiding shared-memory access patterns.
