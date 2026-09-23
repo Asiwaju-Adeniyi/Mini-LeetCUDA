@@ -16,11 +16,11 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
   // compile-time tile sizes
   using TileQ = Int<kQueriesPerBlock>;
   using TileK = Int<kKeysPerBlock>;
-  using TileD = Int<HeadDimCT>;
+  using TileD = Int<HeadDimCT>;            
 
   using OperandA = StorageT;
   using OperandB = StorageT;
-  using Accumulator = AccumT; 
+  using Accumulator = AccumT;
 
 
     auto tileShapeQ = make_shape(TileQ{}, TileD{});
@@ -52,7 +52,7 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     #endif
    
     using TiledMMaGemm1 = decltype(cute::make_tiled_mma_gemm(cute::GMMA::ss_op_selector<OperandA, OperandB, 
-      Accumulator, Shape<TileQ, TileK, TileD>(), WarpgroupCount{}>()))
+      Accumulator, Shape<TileQ, TileK, TileD>(), WarpgroupCount{}>()));
     
 }
 

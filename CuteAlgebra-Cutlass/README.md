@@ -320,3 +320,54 @@ left `{0,1}` at any step.
 **Why it matters:** this is the same F2/XOR machinery behind Figure 1's
 "binary swizzle" example (`f1,f5,f16` strides) — the tool CUTE uses to
 describe scrambled, bank-conflict-avoiding shared-memory access patterns.
+
+### 2.4 Layout (Def 2.17)
+
+A layout is a two-step machine: **step 1 (shape)** converts a plain number
+into a coordinate (`idx2crd`/`crd2idx`, my day-one `k↔(i,j)` trick).
+**step 2 (stride)** converts that coordinate into an output via
+`inner_product`. `L = D∘S` — read right to left: shape runs first, then
+stride.
+
+**Worked on shape `(4,20)`, two different strides:**
+
+| k | step 1: (row,col) | stride `(1,4)` (col-major) | stride `(20,1)` (row-major) |
+|---|---|---|---|
+| 13 | (1,3) | `1×1+3×4=13` | `1×20+3×1=23` |
+| 25 | (1,6) | `1×1+6×4=25` | `1×20+6×1=26` |
+
+`(1,4)` gives back the input exactly — it's the shape's own natural
+prefix-product stride, so shape-then-stride cancels out (same identity
+phenomenon as the `e0,e1` example). `(20,1)` genuinely transforms it.
+
+**The actual point:** the *shape* `(4,20)` never decided row-major vs.
+column-major — the *stride* did, entirely. Same shape, different strides,
+different memory behavior. This is exactly what shows up in CUTLASS
+FlashAttention kernels: shared-memory layouts for WGMMA/TMA often use
+neither plain row-major nor column-major, but whatever custom stride the
+hardware instruction demands.
+
+### 2.4.1 Notations and Operations
+
+Three ways to write the same layout: `S/D` (fraction), `S:D` (colon),
+`D∘S` (composition — right-to-left, matching the two-step pipeline: `S`
+first, `D` second).
+
+**Every layout property below comes straight from the shape — stride is
+irrelevant to all of them; it only matters once you actually run
+`inner_product`:**
+- `rank(L) = rank(S)`, `depth(L) = depth(S)`, `|L| = |S|`
+- `L_i = S_i : D_i` — pure positional pairing, no computation: pair slot
+  `i` of the shape with slot `i` of the stride, nesting intact
+- `Z(L) = Z(S)` — valid coordinate names come from the shape alone
+- `L∼U ⇔ S∼X` and `L⪯U ⇔ S⪯X` — congruence/compatibility of layouts
+  reduces entirely to congruence/compatibility of their shapes
+
+**Checked on my own fold-1 and fold-2 layouts:**
+- `((2,2),2):((2,4),1)` → `L_0 = (2,2):(2,4)`
+- `(2,(2,2)):(2,(1,4))` → `rank(L)=2` (top-level slots are `2` and `(2,2)`
+  — not 3, same rank-counting rule from HTuples), `depth(L)=2`, `L_0=2:2`,
+  `L_1=(2,2):(1,4)`
+
+**Takeaway:** stride affects what a layout *computes*; never what it's
+*shaped like*.
