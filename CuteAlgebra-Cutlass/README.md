@@ -371,3 +371,39 @@ irrelevant to all of them; it only matters once you actually run
 
 **Takeaway:** stride affects what a layout *computes*; never what it's
 *shaped like*.
+
+### 2.4.2 Layout Examples
+
+Six layouts, same shape `(4,8)`, different strides — proof that `offset =
+Σ coordinate × stride` covers everything from trivial to genuinely novel.
+
+**(a)-(c) col-major/row-major/padded** — nothing new, just my own
+`inner_product` work relabeled. Checked `(1,2)`: `(1,4)`→`9`, `(8,1)`→`10`.
+Padding is just bumping the column step (4→5) to leave gaps.
+
+**(d) Col-Major Interleave**, `(4,(4,2)):(4,(1,16))` — column axis splits
+into two chunks: `n0<4` (fast, step 1), `n1<2` (slow, step 16). Checked
+`(0,(0,1))`: `0+0+16=16` ✓. Physically: first 4 logical columns sit packed
+together, then jump to a separate chunk starting at 16 — two contiguous
+regions instead of one smooth row (e.g. splitting a head-dim into tiles).
+
+**(e) Mixed**, `((2,2),(4,2)):((1,8),(2,16))` — *both* axes split at once.
+Checked `((1,0),(2,0))`: `1+0+4+0=5` ✓. This is the general shape of real
+hardware tile-partitioning (thread/value layouts for tensor-core
+instructions, coming up formally in Section 3.3.4).
+
+**(f) Blocked Broadcast**, `((2,2),(2,4)):((0,2),(0,4))` — **stride can be
+0.** `m0` and `n0` both have stride 0, so they drop out of
+`inner_product` entirely — several different coordinates produce the exact
+same offset on purpose. Checked `((1,1),(1,3))`: `1×0+1×2+1×0+3×4=14` ✓,
+and `m0,n0`'s actual values were irrelevant to the result. Breaks the
+assumption that layouts are one-to-one — this is how broadcasting one
+value across a tile is expressed. (Same layout reappears later as a
+"stride-0 modes don't contribute" example for complement, Section 3.5.)
+
+**Figure 4 preview (not detailed yet):** strides built from the
+non-integer semimodules from 2.3.1 — `e0/e1`-style strides produce
+coordinate-outputting layouts (useful for bounds-checking, TMA
+instructions); XOR/`F2`-style strides produce swizzle patterns for
+avoiding shared-memory bank conflicts. Already have both underlying pieces
+from 2.3.1 — this section is just where they get applied.
