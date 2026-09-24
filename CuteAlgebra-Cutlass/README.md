@@ -14,6 +14,11 @@ material, page by page, with my own worked examples.
 | 2.2.2 Coordinates | done |  |
 | 2.3 Stride | done |  |
 | 2.3.1 Integer Semimodules | done |  |
+| 2.4 Layouts | done |  |
+| 2.4.1 Notations and Examples | done |  |
+| 2.4.2 Layout Examples | done |  |
+| 2.4.3 Completeness | done |  |
+| 2.4.4 Semilinearity | done |  |
 
 ...
 
@@ -321,7 +326,7 @@ left `{0,1}` at any step.
 "binary swizzle" example (`f1,f5,f16` strides) — the tool CUTE uses to
 describe scrambled, bank-conflict-avoiding shared-memory access patterns.
 
-### 2.4 Layout (Def 2.17)
+### 2.4 Layout 
 
 A layout is a two-step machine: **step 1 (shape)** converts a plain number
 into a coordinate (`idx2crd`/`crd2idx`, my day-one `k↔(i,j)` trick).
