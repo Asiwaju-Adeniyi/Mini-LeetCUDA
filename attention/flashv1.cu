@@ -21,6 +21,7 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
   using OperandA = StorageT;
   using OperandB = StorageT;
   using Accumulator = AccumT;
+  using ClusterShape = Shape<_1, _1, _1>;
 
 
     auto tileShapeQ = make_shape(TileQ{}, TileD{});
@@ -29,6 +30,12 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     make_stride(headDim * heads, 1, headDim, heads * qRows * headDim));
     Tensor qGmemTensor = make_tensor(qGlobal, gmemLayoutQ);
     auto tmaQ =make_tma_copy(SM90_TMA_LOAD{}, qGmemTensor, smemLayoutQ, tileShapeQ, Int<1>{});
+
+    auto tileShapeO = make_shape(TileQ{}, TileD{});
+    Layout gmemLayoutO = make_layout(make_shape(qRows, headDim, heads, batch),
+    make_stride(headDim*heads, 1, headDim, heads*qRows*headDim));
+    Tensor oGmemTensor = make_tensor(oGlobal, gmemLayoutO);   // fixed: gmemLayoutO, not gmemLayoutQ
+    auto tmaO = make_tma_copy(SM90_TMA_STORE{}, oGmemTensor, smemLayoutQ, tileShapeO, Int<1>{});
 
     auto tileShapeK = make_shape(TileK{}, TileD{});
     auto smemLayoutK = tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandB>{}, tileShapeK);
@@ -45,6 +52,14 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     Tensor vGmemTensor = make_tensor(vGlobal, gmemLayoutV);
     auto tmaV = make_tma_copy(SM90_TMA_LOAD{}, vGmemTensor, smemLayoutV, tileShapeV, Int<1>{});
 
+    auto tileShapeVt = make_shape(TileD{}, TileK{});
+    auto smemLayoutVt = composition(smemLayoutV, make_layout(tileShapeVt, GenRowMajor{}));
+
+    auto tileShapeS = make_shape(TileQ{}, TileK{});
+    Layout gmemLayoutS = make_layout(make_shape(qRows, kRows, heads, batch),
+    make_stride(kRows, 1, kRows*qRows, heads*qRows*kRows));
+    auto smemLayoutS = tile_to_shape(GMMA::Layout_K_SW128_Atom<OperandA>{}, tileShapeS);
+
     #ifdef CTA256
     using WarpgroupCount = Layout<Shape<_2, _1, _1>>;
     #else
@@ -54,13 +69,46 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     using TiledMmaGemm1 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, 
       Accumulator, Shape<TileQ, TileK, TileD>>(), WarpgroupCount{}));
 
-  #ifdef SINSEM 
-  using TileMmaGemm2 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, Accumulator, Shape<TileQ, 
-  TileD, TileK, GMMA::Major::K, GMMA::Major::MN>(), WarpgroupCount{}));
-  #else
-  using TileMmaGemm2 = decltype(cute::make_tiled_mma(cute::GMMA::rs_op_selector<OperandA, OperandB, Accumulator, 
-    Shape<TileQ, TileD, TileK, GMMA::Major::K, GMMA::Major::MN>(), WarpgroupCount{}));
-  #endif 
+    #ifdef SINSMEM 
+    using TileMmaGemm2 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, Accumulator, Shape<TileQ, 
+    TileD, TileK, GMMA::Major::K>, GMMA::Major::MN>(), WarpgroupCount{}));
+    #else
+    
+    using TiledMmaGemm2 = decltype(cute::make_tiled_mma(cute::GMMA::rs_op_selector<OperandA, OperandB, Accumulator, 
+      Shape<TileQ, TileD, TileK>, GMMA::Major::K, GMMA::Major::MN>(), WarpgroupCount{}));
+    #endif 
+
+//Launch configs copied from Colfax's implementation
+  
+void const *kernel = (void const *)fmhaForward<
+    StorageT, AccumT, TiledMmaGemm1, TiledMmaGemm2, decltype(tmaQ),
+    decltype(tileShapeQ), decltype(gmemLayoutQ), decltype(smemLayoutQ),
+    decltype(tmaK), decltype(tileShapeK), decltype(gmemLayoutK), decltype(smemLayoutK),
+    decltype(tileShapeS), decltype(gmemLayoutS), decltype(smemLayoutS),
+    decltype(tmaV), decltype(tileShapeV), decltype(gmemLayoutV), decltype(smemLayoutV), decltype(smemLayoutVt),
+    decltype(tmaO), decltype(tileShapeO), decltype(gmemLayoutO),
+    decltype(gmemLayoutMi), ClusterShape>;
+
+auto smem_size = int(sizeof(SharedStorage<OperandA, decltype(smemLayoutQ), decltype(smemLayoutK),
+                            decltype(smemLayoutS), decltype(smemLayoutV)>));
+cfk::utils::set_smem_size(smem_size, kernel);
+
+dim3 block_dims(size(TiledMmaGemm1{}));
+dim3 grid_dims(ceil_div(size(qRows), size(TileQ{})), heads, batch);
+dim3 cluster_dims(size<0>(ClusterShape{}), 1, 1);
+
+cutlass::ClusterLaunchParams params{grid_dims, block_dims, cluster_dims, smem_size, stream};
+auto nTilesOfK = ceil_div(size(kRows), size(TileK{}));
+
+for (int i = 0; i < iterations; ++i) {
+  cutlass::Status status = cutlass::launch_kernel_on_cluster(
+      params, kernel, qGlobal, tmaQ, tileShapeQ, gmemLayoutQ, smemLayoutQ,
+      kGlobal, tmaK, tileShapeK, gmemLayoutK, smemLayoutK,
+      sGlobal, tileShapeS, gmemLayoutS, smemLayoutS, nTilesOfK,
+      vGlobal, tmaV, tileShapeV, gmemLayoutV, smemLayoutV, smemLayoutVt,
+      oGlobal, tmaO, tileShapeO, gmemLayoutO,
+      rowMaxOut, rowSumOut, gmemLayoutMi, scale);
 }
-  
-  
+
+}
+
