@@ -51,8 +51,16 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     using WarpgroupCount = Layout<Shape<_1, _1, _1>>;
     #endif
    
-    using TiledMMaGemm1 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, 
+    using TiledMmaGemm1 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, 
       Accumulator, Shape<TileQ, TileK, TileD>>(), WarpgroupCount{}));
+
+  #ifdef SINSEM 
+  using TileMmaGemm2 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, Accumulator, Shape<TileQ, 
+  TileD, TileK, GMMA::Major::K, GMMA::Major::MN>(), WarpgroupCount{}));
+  #else
+  using TileMmaGemm2 = decltype(cute::make_tiled_mma(cute::GMMA::rs_op_selector<OperandA, OperandB, Accumulator, 
+    Shape<TileQ, TileD, TileK, GMMA::Major::K, GMMA::Major::MN>(), WarpgroupCount{}));
+  #endif 
 }
   
   
