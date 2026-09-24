@@ -407,3 +407,51 @@ coordinate-outputting layouts (useful for bounds-checking, TMA
 instructions); XOR/`F2`-style strides produce swizzle patterns for
 avoiding shared-memory bank conflicts. Already have both underlying pieces
 from 2.3.1 — this section is just where they get applied.
+
+### 2.4.3 Completeness
+
+Claim: **any** function on a finite domain, as long as `f(0)=0`, can be
+built by chaining CUTE layouts together via composition — not just
+row-major/padding/swizzle, literally any function reachable this way.
+
+Why `f(0)=0` is required, not arbitrary: `inner_product` always sends the
+all-zero coordinate to `0` — true at every single step of the recursion,
+so every composition of layouts inherits it automatically. Completeness
+can't cover a function that violates something every layout is
+structurally incapable of violating.
+
+**Takeaway:** CUTE isn't a convenient toolkit covering the common cases —
+row-major, padding, interleave, swizzle, broadcast are all just familiar
+instances of something provably maximally expressive.
+
+Figure 4 previews strides from 2.3.1's non-integer semimodules in action:
+`e0/e1`-style strides → coordinate-outputting layouts (identity, transpose;
+useful for bounds-checking, TMA); XOR/`F2`-style strides → swizzle
+patterns for shared-memory bank-conflict avoidance. Both underlying pieces
+already covered in 2.3.1 — flagging the binary-swizzle example (`f1,f5,
+f16`) as needing a proper revisit once actual kernel swizzling is
+load-bearing, since it uses bit-permute stride notation not yet derived.
+
+### 2.4.4 Semi-Linearity
+
+`L(c) = d·c` (Eq. 7) once `c` is already a **natural** coordinate — this
+is just `inner_product`, i.e. a dot product, and dot products are linear
+(same superposition property as any linear operator from physics):
+`d·(αc0+βc1) = α(d·c0)+β(d·c1)`.
+
+**Where linearity breaks, shown with my own numbers — carrying.** Shape
+`(4,20)`, `k0=3, k1=2`:
+- convert-then-add: `idx2crd(3)+idx2crd(2) = (3,0)+(2,0) = (5,0)`
+- add-then-convert: `idx2crd(3+2) = idx2crd(5) = (1,1)`
+
+`(5,0) ≠ (1,1)` — mod/floor-div (the shape function) doesn't distribute
+over addition, same phenomenon as carrying in multi-digit addition. So:
+linear in natural coordinates, **not** linear in flat/arbitrary ones —
+because only the stride half of a layout is linear; the shape half is
+linear only when there's no conversion left to do.
+
+**Matrix-vector framing:** `d·c = Dc`. Plain integer strides → `D` is a
+`1×n` row (e.g. row-major `(20,1)` on `(4,20)`: `D=[20,1]`, checked
+`D·(1,3)ᵀ = 20+3 = 23`, matches). Coordinate-valued strides (`e0,e1`) → `D`
+is a genuine `m×n` matrix — `e0,e1` as columns gives the identity matrix,
+which is exactly why that layout just echoes its input back.
