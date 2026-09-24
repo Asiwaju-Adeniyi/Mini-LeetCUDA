@@ -460,3 +460,32 @@ linear only when there's no conversion left to do.
 `D·(1,3)ᵀ = 20+3 = 23`, matches). Coordinate-valued strides (`e0,e1`) → `D`
 is a genuine `m×n` matrix — `e0,e1` as columns gives the identity matrix,
 which is exactly why that layout just echoes its input back.
+
+### 2.4.4 (cont'd) — Link to linear algebra, previewing Section 3
+
+Cecka's closing remarks map the whole of Section 3 onto linear-algebra
+vocabulary I already have from physics:
+
+- **Composition ~ matrix multiplication.** A layout with plain-integer
+  strides is a `1×n` matrix (2.4.4); one with coordinate strides is a
+  genuine `m×n` matrix. Composing two layouts = chaining two linear
+  transformations = multiplying their matrices.
+- **Right-/left-inverse ~ Moore-Penrose pseudo-inverse.** A true two-sided
+  inverse only exists for square, full-rank matrices. When a layout isn't
+  one-to-one, only a weaker, one-directional pseudo-inverse makes sense.
+- **BCP/BMMC, restricted to F2.** Older bit-permutation analysis
+  techniques used this same factor/compose/invert toolkit, but only ever
+  for XOR-based (`F2`) patterns. CUTE does the same moves for genuine
+  integer strides — `F2` is one narrow corner of what it covers.
+
+**Proof, in my own layout, that a true inverse can fail to exist:** my
+blocked-broadcast layout, `((2,2),(2,4)):((0,2),(0,4))`, is not one-to-one
+— `m0` and `n0` (stride 0) never affect the offset. Two different natural
+coordinates, `((1,1),(1,3))` and `((0,1),(0,3))`, both give offset `14`:
+
+`1×0+1×2+1×0+3×4 = 14`
+`0×0+1×2+0×0+3×4 = 14`
+
+Two legal inputs, one output — "the" inverse of `14` is ambiguous by
+construction, so only a *right-* or *left-*inverse (Section 3.4) can be
+defined for this layout, never a full two-sided one.
