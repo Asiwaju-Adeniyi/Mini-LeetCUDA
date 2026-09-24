@@ -45,13 +45,13 @@ void fmhaForwardDevice(int numQueries, int numKeys, int numHeads, int batchSize,
     Tensor vGmemTensor = make_tensor(vGlobal, gmemLayoutV);
     auto tmaV = make_tma_copy(SM90_TMA_LOAD{}, vGmemTensor, smemLayoutV, tileShapeV, Int<1>{});
 
-    #ifndef CTA256
+    #ifdef CTA256
     using WarpgroupCount = Layout<Shape<_2, _1, _1>>;
     #else
     using WarpgroupCount = Layout<Shape<_1, _1, _1>>;
     #endif
    
-    using TiledMMaGemm1 = decltype(cute::make_tiled_mma_gemm(cute::GMMA::ss_op_selector<OperandA, OperandB, 
+    using TiledMMaGemm1 = decltype(cute::make_tiled_mma(cute::GMMA::ss_op_selector<OperandA, OperandB, 
       Accumulator, Shape<TileQ, TileK, TileD>(), WarpgroupCount{}>()));
     
 }
