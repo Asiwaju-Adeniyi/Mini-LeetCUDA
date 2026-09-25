@@ -19,6 +19,7 @@ material, page by page, with my own worked examples.
 | 2.4.2 Layout Examples | done |  |
 | 2.4.3 Completeness | done |  |
 | 2.4.4 Semilinearity | done |  |
+| 2.5 Tensor | done |  |
 
 ...
 
@@ -489,3 +490,31 @@ coordinates, `((1,1),(1,3))` and `((0,1),(0,3))`, both give offset `14`:
 Two legal inputs, one output — "the" inverse of `14` is ambiguous by
 construction, so only a *right-* or *left-*inverse (Section 3.4) can be
 defined for this layout, never a full two-sided one.
+
+### 2.5 Tensor (Def 2.18, 2.19)
+
+A layout only ever produces an *offset* — never actual data. An accessor
+is the missing piece: anything with two abilities, (1) offset — jump by
+`d`, get a new accessor pointing elsewhere, and (2) dereference — ask
+"what's actually here?" Exactly what a raw pointer does (`p+5` offsets,
+`*p` dereferences); the definition just generalizes it so the "jump" can
+be more than a plain integer (e.g. coordinate-valued, matching e0/e1
+strides).
+
+**Tensor = accessor ∘ layout.** `T(c) = *(e + L(c))` is three steps:
+1. `L(c)` — the familiar `inner_product` offset
+2. `e + L(c)` — move the accessor to that offset (a *location*, not a bare
+   number)
+3. `*(...)` — dereference, get the actual value
+
+**Worked on my own array** (`a`-`h`, offsets 0-7), layout
+`L=((2,2),2):((2,4),1)`:
+- `c=((1,1),0)` (box g): `L(c)=6` → `T(c)=g`
+- `c=((0,1),1)` (box f): `L(c)=0×2+1×4+1×1=5` → `T(c)=f`
+- `c=((1,0),1)` (box d): `L(c)=1×2+0×4+1×1=3` → `T(c)=d`
+
+**Key distinction to keep straight:** `L(c)` and `e+L(c)` are both still
+*addresses* (an offset, then a pointer). `T(c)` is the only one of the
+three that actually produces *data* — that's the entire reason a tensor
+needs an accessor at all; a layout alone can only ever say *where*, never
+*what*.

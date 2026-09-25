@@ -122,5 +122,22 @@ struct SharedStorage {
   cute::array_aligned<ElementType, cute::cosize_v<SmemLayoutS>> smem_s;
 #endif
   cute::uint64_t tma_load_mbar[8];
+
+  Tensor sQ = make_tensor(make_smem_ptr(shared_storage.smem_q.data()), smemLayoutQ);
+Tensor sK = make_tensor(make_smem_ptr(shared_storage.smem_k.data()), smemLayoutK);
+#ifdef SINSMEM
+  Tensor sS = make_tensor(make_smem_ptr(shared_storage.smem_s.data()), smemLayoutS);
+#else
+  // Just a dummy sS (with smem_v). It's required only for shape later.
+  Tensor sS = make_tensor(make_smem_ptr(shared_storage.smem_v.data()), smemLayoutS);
+#endif
+Tensor sV = make_tensor(make_smem_ptr(shared_storage.smem_v.data()), smemLayoutV);
+Tensor sVt = make_tensor(make_smem_ptr(shared_storage.smem_v.data()), smemLayoutVt);
+
+Tensor mQ = tmaLoadQ.get_tma_tensor(shape(gmemLayoutQ));
+
+TiledMma0 tiledMma0;
+auto threadMma0 = tiledMma0.get_thread_slice(threadIdx.x);
 };
+
 
