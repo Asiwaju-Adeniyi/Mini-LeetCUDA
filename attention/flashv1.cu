@@ -112,3 +112,15 @@ for (int i = 0; i < iterations; ++i) {
 
 }
 
+template <class ElementType, class SmemLayoutQ, class SmemLayoutK,
+          class SmemLayoutS, class SmemLayoutV>
+struct SharedStorage {
+  cute::array_aligned<ElementType, cute::cosize_v<SmemLayoutQ>> smem_q;
+  cute::array_aligned<ElementType, cute::cosize_v<SmemLayoutK>> smem_k;
+  cute::array_aligned<ElementType, cute::cosize_v<SmemLayoutV>> smem_v;
+#ifdef SINSMEM
+  cute::array_aligned<ElementType, cute::cosize_v<SmemLayoutS>> smem_s;
+#endif
+  cute::uint64_t tma_load_mbar[8];
+};
+
