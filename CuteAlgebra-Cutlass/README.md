@@ -20,6 +20,7 @@ material, page by page, with my own worked examples.
 | 2.4.3 Completeness | done |  |
 | 2.4.4 Semilinearity | done |  |
 | 2.5 Tensor | done |  |
+| 2.5.1 Slicing | done |  |
 
 ...
 
@@ -547,3 +548,58 @@ through.
 **Why this is useful despite "doing nothing":** turns any layout into a
 pure number/coordinate generator with no backing memory needed — used for
 predicated bounds-checks and index tensors, not just data access.
+
+### 2.5.1 Slicing (Eq. 10)
+
+Split a coordinate into a **fixed** part `c'` (real numbers) and an
+**open** part `c*` (untouched placeholder). Fixed part gets computed now
+and folded into a new base offset: `e' = e + L(c')`. Open part keeps its
+own leftover sublayout — one of the `L_i` pieces from 2.4.1 — unevaluated.
+That pair `(e', leftover sublayout)` **is** the sliced tensor.
+
+**Worked on my own fold-1 layout**, `L=((2,2),2):((2,4),1)`, array `a`-`h`:
+fixing `i1=0`, leaving `(m0,m1)` open → `e'=e+0`, leftover `L_0=(2,2):
+(2,4)` → covers `{a,c,e,g}`. Fixing `(m0,m1)=(1,0)`, leaving `i1` open →
+`e'=e+2` (points at `c`), leftover `L_1=2:1` → covers `{c,d}`. Fixing
+`(m0,m1)=(0,1)` → `e'=e+4` (points at `e`), leftover `2:1` → covers
+`{e,f}`.
+
+**Why CUTE rejects ranged slicing (not a missing feature — structural):**
+`c'` must be a single, exact natural coordinate value, since it feeds
+directly into one computed offset `e'=e+L(c')`. A range like rows 2-4 is
+really three separate values bundled as one request — Eq. (10) has no slot
+for that; `c'` can only ever be one value.
+
+Two more reasons from the text, tied to real practice:
+- **Conflates static and dynamic info.** `my_data[thr_id*TILE_SIZE :
+  (thr_id+1)*TILE_SIZE]` jams a compile-time constant (`TILE_SIZE`) and a
+  runtime value (`thr_id`) into one arithmetic expression, hiding the
+  static fact from the compiler. CUTE's fix is fold-then-slice (already my
+  own mental model since 1.3): first make `TILE_SIZE` a real mode in the
+  shape (`logical_divide`), then slice by fixing `thr_id`'s slot and
+  leaving `TILE_SIZE`'s slot open — now the compiler can see
+  `thr_data` is always exactly `TILE_SIZE` long, structurally.
+- **Some ranged slices don't correspond to any valid layout at all.**
+  `A(0,0:2:12)` happens to produce a real `Shape:Stride` (the stride-2
+  subsampling lines up with `A`'s structure); `A(0:2:6,0)` doesn't — no
+  `Shape:Stride` can represent it. CUTE prefers this incompatibility
+  surface at the explicit reshape/composition step (Sec. 3.3.2) rather
+  than silently succeed-or-fail depending on luck at slice time.
+
+**Figure 5 worked examples**, `A = {0}◦((3,2),((2,3),2)):((4,1),((2,15),
+100))`, a 6×12 matrix:
+
+- `A(2,_)`: row fixed to flat `2` → `idx2crd(2)` in shape `(3,2)` → `(2,0)`
+  → `inner_product((2,0),(4,1))=8` → `e'={8}`, leftover full column
+  sublayout `((2,3),2):((2,15),100)`. Checked: row 2 starts with `8` ✓.
+- `A(_,5)`: column fixed to flat `5` → `idx2crd(5)` in shape `(2,3,2)` →
+  `((1,2),0)` → `inner_product=32` → `e'={32}`, leftover row sublayout
+  `(3,2):(4,1)`. Checked: row0,col5 = `32` ✓.
+- `A(2,((0,_),_))` — **fixing partially inside a nested slot**: row fixed
+  (contributes `8`, as above); inside the column's `(2,3)` sub-pair, only
+  `n0=0` is fixed (contributes `0×2=0`), `n1` AND the outer `n2` both stay
+  open. `e'=8+0=8`, leftover `(3,2):(15,100)` (combining the open `n1`
+  with the open `n2`). Matches text exactly.
+  **New idea:** slicing works by-mode at *any depth* — you can fix one
+  sub-piece deep inside a nested slot while its sibling sub-piece and an
+  unrelated top-level slot both stay fully open, all at once.
