@@ -138,6 +138,8 @@ Tensor mQ = tmaLoadQ.get_tma_tensor(shape(gmemLayoutQ));
 
 TiledMma0 tiledMma0;
 auto threadMma0 = tiledMma0.get_thread_slice(threadIdx.x);
+
+
 };
 
 

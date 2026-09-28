@@ -603,3 +603,40 @@ Two more reasons from the text, tied to real practice:
   **New idea:** slicing works by-mode at *any depth* — you can fix one
   sub-piece deep inside a nested slot while its sibling sub-piece and an
   unrelated top-level slot both stay fully open, all at once.
+
+  ### 2.5.1 (cont'd) — By-mode slicing as independent "wheels"
+
+Better mental model than the brackets for nested slicing: a shape's
+leaf-level modes are just independent **wheels** — the brackets are only
+*display grouping*, not a real constraint. `((2,3),2)` is genuinely three
+wheels (sizes 2, 3, 2), the first two just happen to be shown bundled.
+Slicing means choosing, **per wheel**, "known value" or "leave open" — the
+brackets never force a whole bundle to be resolved together.
+
+- Known wheels: multiply by their own stride, sum up → contributes to `e'`.
+- Open wheels: kept together as their own smaller flat/nested layout — the
+  leftover sublayout. If only one wheel out of an original bundle gets
+  resolved, the survivor(s) just become plain wheels, no longer bundled
+  with the resolved one.
+
+**Peeling a 3-digit-size flat index** (needed to convert a flat integer
+into wheel values when the shape has 3+ leaf modes): repeat mod/floor-div
+one digit-size at a time on whatever's left over — number of peels is
+always (number of digit-sizes − 1); the very last leftover *is* the final
+wheel, no extra peel needed. Checked on `k=7`, digit-sizes `(2,3,2)`:
+`n0=7 mod 2=0`, leftover `floor(7/2)=3`; `n1=3 mod 3=0`, leftover
+`floor(3/3)=1`; `n2=1` (no more digit-sizes left, so this is final)
+→ `(0,0,1)`, re-bracketed as `((0,0),1)` to match the shape.
+
+**Worked, full wheel-by-wheel, on `A((_,1),(_,0))`** (same 6×12 matrix,
+`A = ((3,2),((2,3),2)):((4,1),((2,15),100))`):
+- Row wheels: `m0` (size 3, stride 4) open; `m1` (size 2, stride 1) known
+  = `1` → contributes `1×1=1`.
+- Column wheels: `n0` (size 2, stride 2) open; `n1` (size 3, stride 15)
+  open; `n2` (size 2, stride 100) known = `0` → contributes `0×100=0`.
+- `e' = 1+0 = 1` → `{1}`.
+- Leftover: open row wheel `m0` alongside open column wheels `n0,n1`,
+  which keep their *original* bundled grouping since neither was
+  individually resolved: `(3,(2,3)):(4,(2,15))`.
+
+Result: `{1} ◦ (3,(2,3)):(4,(2,15))`.
