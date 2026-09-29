@@ -349,7 +349,7 @@ fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShape
   }
   tma_store_wait<0>();
 
-#ifdef COPYOUTMI  // verification-only: rowMax/rowSum dump, skip unless debugging
+#ifdef COPYOUTMI 
   
 #endif
 
