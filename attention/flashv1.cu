@@ -139,7 +139,79 @@ Tensor mQ = tmaLoadQ.get_tma_tensor(shape(gmemLayoutQ));
 TiledMma0 tiledMma0;
 auto threadMma0 = tiledMma0.get_thread_slice(threadIdx.x);
 
+//signature, shared memory, the TMA-aware tensors, per-thread MMA slices
+
+template <class StorageT, class AccumT, class TiledMmaGemm1, class TiledMmaGemm2,
+          class TiledCopyQ, class TileShapeQ, class GmemLayoutQ, class SmemLayoutQ,
+          class TiledCopyK, class TileShapeK, class GmemLayoutK, class SmemLayoutK,
+          class TileShapeS, class GmemLayoutS, class SmemLayoutS,
+          class TiledCopyV, class TileShapeV, class GmemLayoutV, class SmemLayoutV, class SmemLayoutVt,
+          class TiledCopyO, class TileShapeO, class GmemLayoutO,
+          class GmemLayoutMi, class ClusterShape>
+__global__ static void
+fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShapeQ,
+            GmemLayoutQ gmemLayoutQ, SmemLayoutQ smemLayoutQ,
+            StorageT const *kGlobal, TiledCopyK const tmaK, TileShapeK tileShapeK,
+            GmemLayoutK gmemLayoutK, SmemLayoutK smemLayoutK,
+            StorageT *sGlobal, TileShapeS tileShapeS, GmemLayoutS gmemLayoutS,
+            SmemLayoutS smemLayoutS, int nTilesOfK,
+            StorageT *vGlobal, TiledCopyV const tmaV, TileShapeV tileShapeV,
+            GmemLayoutV gmemLayoutV, SmemLayoutV smemLayoutV, SmemLayoutVt smemLayoutVt,
+            StorageT *oGlobal, TiledCopyO const tmaO, TileShapeO tileShapeO, GmemLayoutO gmemLayoutO,
+            AccumT *rowMaxOut, AccumT *rowSumOut, GmemLayoutMi gmemLayoutMi, float scale) {
+  using namespace cute;
+
+  extern __shared__ char shared_memory[];
+  using SharedStorageT = SharedStorage<StorageT, SmemLayoutQ, SmemLayoutK, SmemLayoutS, SmemLayoutV>;
+  SharedStorageT &shared_storage = *reinterpret_cast<SharedStorageT *>(shared_memory);
+  uint64_t *tma_load_mbar = shared_storage.tma_load_mbar;
+
+  auto blockIdxX = uint64_t(blockIdx.x);
+  auto blockIdxH = uint64_t(blockIdx.y);
+  auto blockIdxB = uint64_t(blockIdx.z);
+
+  Tensor sQ = make_tensor(make_smem_ptr(shared_storage.smem_q.data()), smemLayoutQ);
+  Tensor sK = make_tensor(make_smem_ptr(shared_storage.smem_k.data()), smemLayoutK);
+#ifdef SINSMEM
+  Tensor sS = make_tensor(make_smem_ptr(shared_storage.smem_s.data()), smemLayoutS);
+#else
+  Tensor sS = make_tensor(make_smem_ptr(shared_storage.smem_v.data()), smemLayoutS); // dummy, shape only
+#endif
+  Tensor sV  = make_tensor(make_smem_ptr(shared_storage.smem_v.data()), smemLayoutV);
+  Tensor sVt = make_tensor(make_smem_ptr(shared_storage.smem_v.data()), smemLayoutVt);
+
+  Tensor mQ = tmaQ.get_tma_tensor(shape(gmemLayoutQ));
+  Tensor mK = tmaK.get_tma_tensor(shape(gmemLayoutK));
+  Tensor mV = tmaV.get_tma_tensor(shape(gmemLayoutV));
+  Tensor mO = tmaO.get_tma_tensor(shape(gmemLayoutO));
+
+  TiledMmaGemm1 tiledMma0;
+  auto threadMma0 = tiledMma0.get_thread_slice(threadIdx.x);
+  TiledMmaGemm2 tiledMma1;
+  auto threadMma1 = tiledMma1.get_thread_slice(threadIdx.x);
+
+  // Cluster/multicast bookkeeping — inert given ClusterShape = Shape<_1,_1,_1>.
+  uint32_t block_rank_in_cluster = cute::block_rank_in_cluster();
+  constexpr uint32_t cluster_shape_x = get<0>(ClusterShape{});
+  uint2 cluster_local_block_id = {block_rank_in_cluster % cluster_shape_x,
+                                   block_rank_in_cluster / cluster_shape_x};
+  uint16_t mcast_mask_a = 0;
+  auto block_layout = Layout<ClusterShape>{};
+  for (int n = 0; n < size(block_layout); ++n)
+    mcast_mask_a |= (uint16_t(1) << block_layout(n, 0, Int<0>{}));
+
+  auto cta_tmaQ = tmaQ.get_slice(0);
+  auto cta_tmaK = tmaK.get_slice(cluster_local_block_id.x);
+  auto cta_tmaV = tmaV.get_slice(cluster_local_block_id.x);
+  auto cta_tmaO = tmaO.get_slice(0);
+
+
+
+  //Q's tiling, register-fragment allocation for both GEMMs, barrier setup, the first Q load:
+   
 
 };
+
+
 
 
