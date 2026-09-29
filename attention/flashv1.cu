@@ -293,7 +293,7 @@ fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShape
 
     cfk::gemm_ldbar(tiledMma0, tSrQ, tSrK, tSrS, tma_load_mbar[0], phase); // GEMM-I
 
-#ifdef COPYOUTMM0  // verification-only, matches sGlobal debug path
+#ifdef COPYOUTMM0  
     Tensor mS = make_tensor(make_gmem_ptr(sGlobal), gmemLayoutS);
     auto blkCoordS = make_coord(blockIdxX, blockIdxY, blockIdxH, blockIdxB);
     Tensor gS = local_tile(mS, tileShapeS, blkCoordS);
@@ -350,11 +350,11 @@ fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShape
   tma_store_wait<0>();
 
 #ifdef COPYOUTMI  // verification-only: rowMax/rowSum dump, skip unless debugging
-  // ... (see real source if you need this path; purely diagnostic)
+  
 #endif
 
   cute::cluster_arrive_relaxed();
   cute::cluster_wait();
   __syncthreads();
-  
+
 }
