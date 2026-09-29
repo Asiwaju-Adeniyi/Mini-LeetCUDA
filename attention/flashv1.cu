@@ -329,6 +329,32 @@ fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShape
 
 };
 
+//epilogue: normalize, store O,
 
+  applySoftmaxNormalizer<AccumT>(rowSum, tOrO);
 
+  Tensor tOsOAcc = threadMma1.partition_C(sQ);   // overwrites sQ — safe, Q is done being read
+  cfk::copy(tOrO, tOsOAcc);
 
+  auto blkCoordO = make_coord(blockIdxX, 0, blockIdxH, blockIdxB);
+  Tensor gO = local_tile(mO, tileShapeO, blkCoordO);
+  Tensor tOgOX = cta_tmaO.partition_D(gO);
+  Tensor tOgO  = group_modes<1, rank(tOgOX)>(tOgOX);
+
+  Tensor tOsOX = cta_tmaO.partition_S(sQ);
+  Tensor tOsO  = group_modes<1, rank(tOsOX)>(tOsOX);
+
+  if (warp_idx == 0 and lane_predicate) {
+    cute::copy(tmaO, tOsO, tOgO);
+  }
+  tma_store_wait<0>();
+
+#ifdef COPYOUTMI  // verification-only: rowMax/rowSum dump, skip unless debugging
+  // ... (see real source if you need this path; purely diagnostic)
+#endif
+
+  cute::cluster_arrive_relaxed();
+  cute::cluster_wait();
+  __syncthreads();
+  
+}
