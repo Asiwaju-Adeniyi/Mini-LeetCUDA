@@ -210,6 +210,63 @@ fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShape
   //Q's tiling, register-fragment allocation for both GEMMs, barrier setup, the first Q load:
    
 
+    auto blkCoordQ = make_coord(blockIdxX, 0, blockIdxH, blockIdxB);
+  Tensor gQ = local_tile(mQ, tileShapeQ, blkCoordQ);
+
+  Tensor tQgQX = cta_tmaQ.partition_S(gQ);
+  Tensor tQgQ  = group_modes<1, rank(tQgQX)>(tQgQX);
+  auto kTiles = size<1>(tQgQ);
+  assert(kTiles == 1);
+  assert(kTiles == size<2>(gQ));
+
+  Tensor tQsQX = cta_tmaQ.partition_D(sQ);
+  Tensor tQsQ  = group_modes<1, rank(tQsQX)>(tQsQX);
+  Tensor tKsKX = cta_tmaK.partition_D(sK);
+  Tensor tKsK  = group_modes<1, rank(tKsKX)>(tKsKX);
+  Tensor tVsVX = cta_tmaV.partition_D(sV);
+  Tensor tVsV  = group_modes<1, rank(tVsVX)>(tVsVX);
+  static_assert(size<1>(tQsQ) == 1);
+  static_assert(size<1>(tKsK) == 1);
+
+  // GEMM-I fragments.
+  Tensor tSrQ = threadMma0.partition_fragment_A(sQ);
+  Tensor tSrK = threadMma0.partition_fragment_B(sK);
+  Tensor tSrS = partition_fragment_C(tiledMma0, tileShapeS);
+  clear(tSrS);
+
+  // GEMM-II fragments (S becomes P).
+  Tensor tOrV = threadMma1.partition_fragment_B(sVt);
+  Tensor tOrO = partition_fragment_C(tiledMma1, tileShapeO);
+  clear(tOrO);
+
+#ifdef SINSMEM
+  Tensor tSsS = threadMma0.partition_C(sS);
+  cute::fill(tSsS, StorageT(0.0));
+  Tensor tOrP = threadMma1.partition_fragment_A(sS);
+#else
+  Tensor tOrS = threadMma1.partition_fragment_A(sS);
+  auto tOrPLayout = ReshapeTStoTP()(tSrS, tOrS);
+  auto tOrP = make_tensor(tSrS.data(), tOrPLayout);
+#endif
+
+  Tensor rowMax = make_tensor<AccumT>(Shape<Int<2 * size<1>(tSrS)>>{});
+  Tensor rowSum = make_fragment_like(rowMax);
+  cute::fill(rowMax, -cutlass::platform::numeric_limits<AccumT>::infinity());
+  cute::fill(rowSum, AccumT(0.0));
+
+  cute::cluster_arrive_relaxed();
+  cute::cluster_wait();
+
+  int warp_idx = cutlass::canonical_warp_idx_sync();
+  int lane_predicate = cute::elect_one_sync();
+
+  cfk::barrierInit(tma_load_mbar[0], 1); // K
+  cfk::barrierInit(tma_load_mbar[1], 1); // V
+  cfk::barrierInit(tma_load_mbar[2], 1); // Q
+
+  cfk::copy(tQgQ(_, 0), tQsQ(_, 0), tmaQ, tma_load_mbar[2]);
+  cute::wait_barrier(tma_load_mbar[2], 0); // required
+
 };
 
 
