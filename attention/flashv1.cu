@@ -267,6 +267,66 @@ fmhaForward(StorageT const *qGlobal, TiledCopyQ const tmaQ, TileShapeQ tileShape
   cfk::copy(tQgQ(_, 0), tQsQ(_, 0), tmaQ, tma_load_mbar[2]);
   cute::wait_barrier(tma_load_mbar[2], 0); // required
 
+  // the actual mainloop: prefetch, GEMM-I, online softmax, GEMM-II, phase flip
+
+     auto blkCoordK = make_coord(0, 0, blockIdxH, blockIdxB);
+  Tensor gK = local_tile(mK, tileShapeK, blkCoordK);
+  Tensor tKgKX = cta_tmaK.partition_S(gK);
+  Tensor tKgK  = group_modes<1, rank(tKgKX)>(tKgKX);
+  assert(size<1>(tKgK) == size<2>(gK));
+  assert(size<1>(tKgK) == kTiles);
+
+  cfk::copy(tKgK(_, 0), tKsK(_, 0), tmaK, tma_load_mbar[0], mcast_mask_a);
+  int phase = 0;
+
+#pragma unroll
+  for (uint64_t blockIdxY = 0; blockIdxY < nTilesOfK; ++blockIdxY) {
+
+    auto blkCoordV = make_coord(blockIdxY, 0, blockIdxH, blockIdxB);
+    Tensor gV = local_tile(mV, tileShapeV, blkCoordV);
+    Tensor tVgVX = cta_tmaV.partition_S(gV);
+    Tensor tVgV  = group_modes<1, rank(tVgVX)>(tVgVX);
+
+    cfk::syncCluster<ClusterShape>();
+    cfk::copy(tVgV(_, 0), tVsV(_, 0), tmaV, tma_load_mbar[1], mcast_mask_a);
+    clear(tSrS);
+
+    cfk::gemm_ldbar(tiledMma0, tSrQ, tSrK, tSrS, tma_load_mbar[0], phase); // GEMM-I
+
+#ifdef COPYOUTMM0  // verification-only, matches sGlobal debug path
+    Tensor mS = make_tensor(make_gmem_ptr(sGlobal), gmemLayoutS);
+    auto blkCoordS = make_coord(blockIdxX, blockIdxY, blockIdxH, blockIdxB);
+    Tensor gS = local_tile(mS, tileShapeS, blkCoordS);
+    Tensor tSgS = threadMma0.partition_C(gS);
+    copy(tSrS, tSgS);
+#endif
+
+    if (blockIdxY != (nTilesOfK - 1)) {
+      auto blkCoordKNext = make_coord(blockIdxY + 1, 0, blockIdxH, blockIdxB);
+      auto gKNext = local_tile(mK, tileShapeK, blkCoordKNext);
+      Tensor tKgKNextX = cta_tmaK.partition_S(gKNext);
+      Tensor tKgKNext  = group_modes<1, rank(tKgKNextX)>(tKgKNextX);
+      cfk::syncCluster<ClusterShape>();
+      cfk::copy(tKgKNext(_, 0), tKsK(_, 0), tmaK, tma_load_mbar[0], mcast_mask_a);
+    }
+
+    if (blockIdxY == 0) {
+      onlineSoftmaxAndRescale<true, AccumT>(rowMax, rowSum, tSrS, tOrO, scale);
+    } else {
+      onlineSoftmaxAndRescale<false, AccumT>(rowMax, rowSum, tSrS, tOrO, scale);
+    }
+    warpgroup_fence_operand(tSrS);
+
+#ifdef SINSMEM
+    cfk::copy(tSrS, tSsS);
+    cfk::gemm_ldbar(tiledMma1, tOrP, tOrV, tOrO, tma_load_mbar[1], phase);
+#else
+    cfk::gemm_ldbar(tiledMma1, convert_type<StorageT, AccumT>(tOrP), tOrV,
+                    tOrO, tma_load_mbar[1], phase);
+#endif
+    phase = (phase + 1) % 2;
+  }
+
 };
 
 
