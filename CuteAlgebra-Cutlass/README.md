@@ -21,6 +21,7 @@ material, page by page, with my own worked examples.
 | 2.4.4 Semilinearity | done |  |
 | 2.5 Tensor | done |  |
 | 2.5.1 Slicing | done |  |
+| 2.6.1 COPY | done |  |
 
 ...
 
@@ -640,3 +641,48 @@ wheel, no extra peel needed. Checked on `k=7`, digit-sizes `(2,3,2)`:
   individually resolved: `(3,(2,3)):(4,(2,15))`.
 
 Result: `{1} ◦ (3,(2,3)):(4,(2,15))`.
+
+### 2.6.1 COPY
+
+**Template parameters:** `TS`/`TD` = element type each tensor points to
+(what the accessor dereferences to). `SLayout`/`DLayout` = compile-time
+`Shape:Stride` type for source/destination — completely independent of
+each other, not even required to have the same rank. Only real constraint:
+`size(src)==size(dst)` — total element count (`|S|`) must match; internal
+structure doesn't have to.
+
+**What the loop does, tied to what I already own:** `dst(i)=src(i)` is
+`operator()` = `T(c)` from Eq. (9). `i` is a plain **integral coordinate**
+(Def 2.10) shared between both tensors — but `src(i)` and `dst(i)` each
+independently run their *own* `idx2crd` + `inner_product` through their
+*own* layout and accessor. Same rank-agnostic trick as 1.3's
+batched-GEMM: loop over a flat index, let each side's own geometry handle
+translation.
+
+**Why one function body implements many physical patterns:** since
+`SLayout`/`DLayout` are compile-time types, the compiler fully resolves
+every stride/fold at compile time — no runtime branching. Same 3-line
+function becomes: plain copy (`8:1` both sides), gather/scatter (scattered
+layout one side, packed the other), transpose (swap stride-to-mode
+pairing), or broadcast (stride-0 layout on one side — my own blocked-
+broadcast example).
+
+**Performance tie-in:** compile-time-resolved strides let the compiler
+fully unroll the loop, know every address offset as a literal constant,
+and generate vectorized wide loads/stores where the layout permits —
+impossible if strides were ordinary runtime data. This is literally the
+mechanism behind global→shared-memory copies in a real kernel (e.g. my
+FlashAttention work): same `copy()` shape, instantiated per pipeline stage
+against whatever tile layout is needed, zero runtime overhead for the
+"generic" part.
+
+**Worked check — broadcast src, flat dst:** `src` = my blocked-broadcast
+layout `((2,2),(2,4)):((0,2),(0,4))`, size `|S|=4×8=32` (not 8 — easy trap,
+matches Fig. 3(f)'s original `(4,8)` shape). For `size(src)==size(dst)` to
+hold, `dst` must also be size 32, e.g. `32:1`. Because `src`'s two
+stride-0 wheels only produce **8 truly distinct values** (`m1∈{0,1},
+n1∈{0,1,2,3}` → `2×4=8`) but get read 32 times, **every position in
+`dst` still gets written** (the loop runs `i=0..31` unconditionally) —
+each of the 8 distinct values just ends up duplicated across 4 different
+`dst` slots (`32÷8=4`). Net effect: a broadcast/tile-fill, implemented
+with zero special-case code, purely from `src`'s layout type.
