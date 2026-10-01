@@ -22,6 +22,7 @@ material, page by page, with my own worked examples.
 | 2.5 Tensor | done |  |
 | 2.5.1 Slicing | done |  |
 | 2.6.1 COPY | done |  |
+| 2.6.2 GEMM | done |  |
 
 ...
 
@@ -758,3 +759,62 @@ which different libraries/hardware instructions often require. Directly
 explains GEMM's `NT`/`TN`/`TT` naming in Table 3: "transpose" there means
 this same per-operand stride-convention choice, never a data-rearranging
 step.
+
+### 2.6.2 GEMM
+
+**`size<i>(X)` = my own `|X_i|`**, just C++ template syntax for "give me
+mode `i`'s size" — `<i>` is a compile-time selector, not a runtime arg.
+Checked on my own fold-1 shape as `A=(M,K)`: `A=((2,2),2):((2,4),1)` →
+`size<0>(A)=|(2,2)|=4=M`, `size<1>(A)=|2|=2=K`.
+
+**The three preconditions**, in plain terms: `size<0>(A)==size<0>(C)` → A
+and C agree on `M`. `size<0>(B)==size<1>(C)` → B's rows match C's
+*columns* (`N`). `size<1>(A)==size<1>(B)` → A and B agree on `K`. Pure
+size-matching across whichever mode is shared — same `L_i`/size-checking
+instinct as everywhere else, just gatekeeping a real function signature.
+
+**The triple loop is Section 1.3's row/column/reduction classification,
+made literal:** `for k, for n, for m: C(m,n) += A(m,k)*B(n,k)`. `m` = row
+mode (A,C not B), `n` = column mode (B,C not A), `k` = reduction mode
+(A,B not C, outermost loop) — the `+=` *is* the Σ_k from the Einstein
+notation, spelled out as loop accumulation. Each access (`A(m,k)` etc.) is
+just `T(c)` again, three independent tensors instead of one.
+
+### Table 3 — Applications of GEMM
+
+| Application | A-Layout | B-Layout | C-Layout |
+|---|---|---|---|
+| NT GEMM | (M,K):(1,lda) | (N,K):(1,ldb) | (M,N):(1,ldc) |
+| TN GEMM | (M,K):(lda,1) | (N,K):(ldb,1) | (M,N):(1,ldc) |
+| NTT GEMM | (N,K):(1,ldb) | (M,K):(1,lda) | (N,M):(1,ldc) |
+| BLIS GEMM | (M,K):(dma,dka) | (N,K):(dnb,dkb) | (M,N):(dmc,dnc) |
+| GETT | ((M1,M2),K):((1,W),X) | (N,K):(K,1) | ((M1,M2),N):((1,Y),Z) |
+| GETT | (M,(K1,K2)):((W,X),1) | (N,(K1,K2)):((Y,Z),1) | (M,N):(1,M) |
+| CONV | (K,(C,T,R,S)):DA | ((N,Z,P,Q),(C,T,R,S)):DB | (K,(N,Z,P,Q)):DC |
+
+- **NT/TN/NTT — "N"/"T" = Table 2's transpose lesson, applied per
+  operand.** Which mode is stride-1 decides N vs T; nothing data-level
+  changes. Checked: `NT`'s `A=(M,K):(1,lda)` means incrementing `M` is a
+  cheap contiguous step (stride 1), `K` costs a full `lda` jump. `NTT`
+  goes further — swaps which tensor plays the `M` role, output comes out
+  transposed too (`(N,M)` not `(M,N)`). Same 3-line `gemm()` throughout.
+- **BLIS GEMM — the real CUTE-vs-BLAS advantage.** Plain BLAS only ever
+  exposes *one* tunable stride per operand (the leading dimension); BLIS's
+  row gives every mode its own fully independent stride, no mode forced
+  contiguous — not expressible in classic BLAS's API at all, but just an
+  ordinary `Shape:Stride` to me.
+- **GETT — my own Section 1.3 work, now literally running as code.** Row 1
+  nests `M→(M1,M2)` (my `(sp)` row-grouping); row 2 nests `K→(K1,K2)`
+  (my `(ur)` reduction-grouping). Fold logical indices into a multi-mode
+  (already know how — it's just folding), and this exact unmodified
+  `gemm()` runs. Concrete proof that any tensor contraction becomes an
+  ordinary GEMM once folded correctly.
+- **CONV via im2col — shapes only, strides (`DA,DB,DC`) left as
+  placeholders** since the real im2col strides need composition (Sec. 3,
+  not covered yet — flagging rather than guessing). `A`=filter
+  (`K` out-channels × `(C,T,R,S)` in-channels/kernel dims), `B`=unfolded
+  input (`N` batch × `(Z,P,Q)` output positions, paired against the same
+  `(C,T,R,S)`). Point: convolution's sliding-window pattern becomes just
+  another layout fed to the same unmodified kernel — no conv-specific code.
+
+**representation layer (Tuple through GEMM) fully worked by hand** 
