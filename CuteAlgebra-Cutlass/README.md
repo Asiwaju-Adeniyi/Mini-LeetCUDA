@@ -23,6 +23,7 @@ material, page by page, with my own worked examples.
 | 2.5.1 Slicing | done |  |
 | 2.6.1 COPY | done |  |
 | 2.6.2 GEMM | done |  |
+| 3.1 Concatenation | done |  |
 
 ...
 
@@ -818,3 +819,29 @@ just `T(c)` again, three independent tensors instead of one.
   another layout fed to the same unmodified kernel — no conv-specific code.
 
 **representation layer (Tuple through GEMM) fully worked by hand** 
+
+### 3.1 Concatenate
+
+A layout IS its list of sublayouts, evaluated piece-by-piece and summed
+(Eq. 11) — not new machinery, just a name for what I've been doing since
+day one. `L(c) = L_0(c_0)+L_1(c_1)+...` is literally the same move as my
+very first offset formula, `2×i0+1×i1+4×i2` — each term *is* a sublayout
+evaluated on its own coordinate slot.
+
+**Admissibility is purely a stride-*type* check — not about coordinate
+ranges or shape sizes.** Every sublayout being concatenated must produce
+the *same kind* of output: plain integer, coordinate, or XOR-value — never
+mixed. `4:2` and `3:e0` fail because one's stride is a plain integer
+(`Z`), the other a coordinate (`Z^S`) — can't sum a number and a
+coordinate.
+
+Checked on my own fold-1 layout, `L=((2,2),2):((2,4),1)`: `L_0=(2,2):
+(2,4)` and `L_1=2:1` — strides `2,4,1` are all plain integers, same
+codomain `Z` → admissible. Every offset I've ever computed for this layout
+was silently relying on this.
+
+**By-mode combinator (Eq. 12)** is just a promise, not new math yet: every
+operation defined later this section (coalesce, composition, complement,
+logical divide) can always be run *per-slot* instead of on the whole
+layout — exactly what I already did unprompted, computing coalesce
+mode-by-mode on `(2,(1,6)):(1,(6,2))` back in 1.3.
