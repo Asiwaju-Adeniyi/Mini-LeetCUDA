@@ -687,6 +687,49 @@ each of the 8 distinct values just ends up duplicated across 4 different
 `dst` slots (`32÷8=4`). Net effect: a broadcast/tile-fill, implemented
 with zero special-case code, purely from `src`'s layout type.
 
+### Table 2 — Applications of COPY
+
+Every row below is the **identical** three-line `copy()` from 2.6.1 — no
+code changes, only the two layout types change, and that alone produces a
+completely different real operation.
+
+| Application | Source Layout | Destination Layout |
+|---|---|---|
+| 1D Arrays | `8:1` | `8:1` |
+| ND Arrays | `(8,2,3):(1,16,32)` | `(8,2,3):(1,16,32)` |
+| Gather | `(2,3,2):(42,1,128)` | `12:1` |
+| Scatter | `12:1` | `(2,3,2):(42,1,128)` |
+| Broadcast | `7:0` | `7:1` |
+| Constant | `7:0` | `7:0` |
+| Transpose | `(8,3):(1,8)` | `(8,3):(3,1)` |
+| Tensor Transpose | `(8,(3,5)):(1,(57,8))` | `(8,15):(1,8)` |
+
+- **1D/ND Arrays:** identical layout both sides — plain element-for-element
+  copy, structure preserved exactly.
+- **Gather:** source stride `(42,1,128)` isn't coalescable to shape
+  `(2,3,2)` (scattered, non-natural), destination is packed `12:1`. Read
+  from scattered physical locations, write out tight and contiguous.
+- **Scatter:** exact mirror — packed `12:1` source, scattered destination.
+  Read contiguous, write scattered.
+- **Broadcast:** source `7:0` (stride 0 — same value read every time, my
+  own blocked-broadcast mechanism, 1D here), destination `7:1` (7 distinct
+  positions). One value fanned out to 7 different places.
+- **Constant — looks like Broadcast, isn't.** Destination is *also* `7:0`
+  — every write lands on the *same* single location, 7 times redundantly.
+  One value → one destination, rewritten repeatedly (checked by hand: 7
+  reads and 7 writes of the same value, ending with just one physical
+  slot holding it — vs. Broadcast's 7 distinct slots).
+- **Transpose:** same shape `(8,3)` both sides, strides flipped. See the
+  separate correction note — this swaps the *storage convention* (which
+  mode is stride-1/fast), not the logical `(i,j)↔value` content. Verified
+  on `(3,2)` by hand: src's physical array read back through dst's own
+  stride reproduces the identical matrix.
+- **Tensor Transpose:** general case — source `(8,(3,5)):(1,(57,8))` is
+  genuinely non-coalescable (`3×8=24≠57`, same non-flattening situation as
+  my fold-2 example), destination flattens that nested group into plain
+  `(8,15):(1,8)`. Untangles a hierarchical layout *and* rearranges it in
+  one `copy()` call.
+
 
 
 ### Correction note — what COPY's "Transpose" actually transposes
