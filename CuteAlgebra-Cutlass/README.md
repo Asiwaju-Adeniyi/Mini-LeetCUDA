@@ -686,3 +686,32 @@ n1∈{0,1,2,3}` → `2×4=8`) but get read 32 times, **every position in
 each of the 8 distinct values just ends up duplicated across 4 different
 `dst` slots (`32÷8=4`). Net effect: a broadcast/tile-fill, implemented
 with zero special-case code, purely from `src`'s layout type.
+
+
+
+### Correction note — what COPY's "Transpose" actually transposes
+
+Table 2's transpose row, `(8,3):(1,8)` → `(8,3):(3,1)`, is **not**
+rearranging logical content. Shape is identical both sides; `copy` always
+does `dst(i,j)=src(i,j)` — same `(i,j)`, same value, every time, by
+definition. So the `(i,j)↔value` mapping never changes.
+
+**Verified on a small case**, `(3,2)`, src stride `(1,3)`, dst stride
+`(2,1)`: tabulating every `(i,j)` shows src's physical array
+`a,b,c,d,e,f` (offsets 0-5) lands in dst's physical memory as
+`a,d,b,e,c,f` — but reading dst back out via *its own* row-major stride
+reproduces the exact same matrix, same `(i,j)` positions, same values.
+
+**What's actually being transposed: the storage convention — which mode
+is stride-1 (fast) — not the shape, not the logical matrix.** Source is
+column-major (mode 0 fast), destination is row-major (mode 1 fast). A
+genuine mathematical transpose (swapping element `(i,j)` with `(j,i)`)
+would need the *shape* itself to flip (`(3,2)→(2,3)`); that's not what
+happens here.
+
+**Why this still matters:** it's exactly how you'd convert a column-major
+BLAS buffer into a row-major one — same data, different physical layout,
+which different libraries/hardware instructions often require. Directly
+explains GEMM's `NT`/`TN`/`TT` naming in Table 3: "transpose" there means
+this same per-operand stride-convention choice, never a data-rearranging
+step.
