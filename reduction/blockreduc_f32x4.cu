@@ -8,7 +8,7 @@
 #include "warpreduc.cu"
 
 #define WarpSize 32
-#define FLOAT4 (reinterpret_cast<float4 *> (&(vale))[0])
+#define FLOAT4 (reinterpret_cast<float4 *> (&(value))[0])
 
 template <const int numThreads = 256 / 4>
 
@@ -22,7 +22,7 @@ __global__ void blockReducf32f4(float *a, float *g, int N) {
     int warp = tid / WarpSize;
     int lane = tid % WarpSize;
 
-    float regA = FLOAT4(a[idx]);
+    float4 regA = FLOAT4(a[idx]);
     float val = (idx < N) : (regA.x + regA.y + regA.z + regA.w);
     
     val = warpreduc<NumWarps> (val);
