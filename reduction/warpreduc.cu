@@ -14,6 +14,5 @@ __device__ __forceinline__ float warpreduc(float val) {
     for (int mask = kW >> 1; mask > 0; mask >>= 1) {
         val += __shfl_xor_sync(0xffffffff, val, mask);
     }
-
-    return val;
+    return value;
 }
