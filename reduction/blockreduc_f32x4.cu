@@ -23,9 +23,9 @@ __global__ void blockReducf32f4(float *a, float *g, int N) {
     int lane = tid % WarpSize;
 
     float4 regA = FLOAT4(a[idx]);
-    float val = (idx < N) : (regA.x + regA.y + regA.z + regA.w);
+    float val = (idx < N) ? (regA.x + regA.y + regA.z + regA.w) : 0.0f;
     
-    val = warpreduc<NumWarps> (val);
+    val = warpreduc<warpsize> (val);
     
     if (lane == 0) reducShared[warp] = val;
 
