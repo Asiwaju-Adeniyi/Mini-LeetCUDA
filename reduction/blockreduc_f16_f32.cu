@@ -27,7 +27,7 @@ __device__ __forceinline__ float warp16_32(half val) {
 float regA = __half2float(val);
 #pragma unroll 
 for (int mask = kWarpSize >> 1; mask >= 1; mask >>= 1) {
-    regA = __shfl_xor_sync(0xffffffff, regA, mask);
+    regA += __shfl_xor_sync(0xffffffff, regA, mask);
 }
 
 return regA;
@@ -45,7 +45,7 @@ __global__ void blockreduc_f16_f32(half *a, float *y, int N) {
     int warp = tid / WarpSize;
     int lane = tid % WarpSize;
 
-    half regA = (idx < N) : a[idx] ? __half2float(0.0f);
+    half regA = (idx < N) : a[idx] ? __float2half(0.0f);
 
     #pragma unroll 
     for (int mask = WarpSize >> 1; mask >= 1; mask >>= 1) {
@@ -57,15 +57,15 @@ __global__ void blockreduc_f16_f32(half *a, float *y, int N) {
     }
      __syncthreads();
 
-    float sum = (lane < NumWarps) : sharedreduc ? 0.0f;
+    float regA = (lane < NumWarps) : sharedreduc[lane] ? 0.0f;
     
 
   if (warp == 0) (    #pragma unroll 
     for (int mask = WarpSize >> 1; mask >= 1; mask >>= 1) {
-        sum = __halfadd(regA, __shfl_xor_sync(0xffffffff, regA, mask));
+        regA = __halfadd(regA, __shfl_xor_sync(0xffffffff, regA, mask));
     })
 
-    atomicadd(y, sum);
+    atomicadd(y, regA);
 
 
 }
