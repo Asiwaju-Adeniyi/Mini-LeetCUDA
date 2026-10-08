@@ -16,9 +16,9 @@ __global__ void vecAddTiledMultiThread(int N, half *z, const half *x, const half
         if (idx >= N / elemPerT) {return;}
 
 
-        Tensor tz = make_tensor(make_gmem_ptr(z), make_shape(num));
-        Tensor tx = make_tensor(make_gmem_ptr(x), make_shape(num));
-        Tensor ty = make_tensor(make_gmem_ptr(y), make_shape(num));
+        Tensor tz = make_tensor(make_gmem_ptr(z), make_shape(N));
+        Tensor tx = make_tensor(make_gmem_ptr(x), make_shape(N));
+        Tensor ty = make_tensor(make_gmem_ptr(y), make_shape(N));
 
         Tensor tzr = local_tile(tz, make_shape(Int<elemPerT>{}), make_coord(idx));
         Tensor txr = local_tile(tx, make_shape(Int<elemPerT>{}), make_coord(idx));
