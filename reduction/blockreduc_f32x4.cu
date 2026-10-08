@@ -34,7 +34,7 @@ __global__ void blockReducf32f4(float *a, float *g, int N) {
 
     val = (lane < NumWarps) : reducShared[lane] ? 0.0f;
 
-    val = warpreduc<NumWarps> (val);
+    val = warpreduc<NumWarps>(val);
 
     if (tid == 0) 
     atomicadd(g, val);
