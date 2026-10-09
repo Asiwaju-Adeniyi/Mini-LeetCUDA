@@ -10,35 +10,6 @@
 #define WarpSize 32
 #define FLOAT4(value)(<reinterpret_cast<float4 *> (&(value))[0])
 
-struct __align__(8) MN {
-    float M;
-    float N;
-}
-
-
-template <const int kWarpSize = WarpSize> 
-
-__device__ __forceinline__ MN online_softmax_reduction(MN input) {
-    unsigned int mask = 0xffffffff;
-#pragma unroll 
-for (int stride = kWarpSize >> 1; stride >= 1; stride >>=1) {
-    MN other;
-
-    other.M = __shfl_xor_sync(mask, input.M, stride);
-    other.N = __shfl_xor_sync(mask, input.N, stride);
-
-    bool bigger = (input.M > other.M);
-
-    MD biggerMD = (bigger) ? input : other;
-    MD smallerMD = (bigger) ? other : input;
-    
-    input.D = biggerMD.N + smallerMD.N * __expf(smallerMD.M - biggerMD.M);
-    input.M = biggerMD.M; 
-
-}
-return input;
-}
-
 
 template <const int kWarpSize = WarpSize> 
 __device__ __forceinline__ float softmax_warpReduc_sum(float val) {
