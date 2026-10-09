@@ -3,12 +3,6 @@
 #include <thrust/device_vector.h>
 
 
-
-#include <cute/tensor.hpp>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-
-
 template <const int elemPerT = 8, const int M, const int N, const int K> 
 
 __global__ void testCuteMatmul (float *c, const float *a, const float *b, int N) {

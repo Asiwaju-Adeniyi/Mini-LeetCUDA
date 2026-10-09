@@ -81,6 +81,6 @@ __global__ void hSharedGemm(half* __restrict__ A, half* __restrict__ B, half* __
         __syncthreads();
         
     }
-    C[cRow * K + cCol] = accum;
+    C[cRow * N + cCol] = accum;
 }
 

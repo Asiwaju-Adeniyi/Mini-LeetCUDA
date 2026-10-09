@@ -29,6 +29,7 @@ __global__ void matmul_float32(const float *a, const float *b, float *c, int M, 
     }
 }
 
+
 /** Learning from Elliot's CUDA for Deep Learning, I decided to also add the fp16 implementation of each matmul kernel 
  * in the same file
  * */
