@@ -14,11 +14,14 @@ struct __align__(8) MN {
     float M;
     float N;
 }
+
+
 template <const int kWarpSize = WarpSize> 
+
 __device__ __forceinline__ MD online_softmax_reduction(MD input) {
     unsigned int mask = 0xffffffff;
 #pragma unroll 
-for (int stride = kWarpSize >> 1; strid >= 1; stride >>=1) {
+for (int stride = kWarpSize >> 1; stride >= 1; stride >>=1) {
     MD other;
 
     other.M = __shfl_xor_sync(mask, input.M, stride);
@@ -35,6 +38,7 @@ for (int stride = kWarpSize >> 1; strid >= 1; stride >>=1) {
 }
 return input;
 }
+
 
 template <const int kWarpSize = WarpSize> 
 __device__ __forceinline__ float softmax_warpReduc_sum(float val) {
