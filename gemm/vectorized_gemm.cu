@@ -82,9 +82,11 @@ __global__ void vectorized_kernel(int M, int N, int K, float *a, float *b, float
             accum.z = rpbT[resIdxM * TN + resIdxN + 2];
             accum.w = rpbT[resIdxM * TN + resIdxN + 3];
 
+        FLOAT4(C[threadRow * TM + resIdxM] * N + threadCol * TN + resIdxN) = accum;
+
         }
 
-        FLOAT4(C[threadRow * TM + resIdxM] * N + threadCol * TN + resIdxN) = accum;
+       
     }
 
 }
