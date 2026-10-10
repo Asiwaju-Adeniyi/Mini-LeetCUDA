@@ -12,7 +12,8 @@
 struct __align__(8) MD {
     float M;
     float D;
-}
+};
+
 template < const int kWarpSize = WarpSize> 
 __device__ __forceinline__ MD softmax_warp_reduc(MD input) {
     int mask = 0xffffffff;
@@ -57,9 +58,9 @@ __global__ void online_softmax_f32(const float* inp, float* out, int N) {
     }
     __syncthreads();
 
-    if (threadIdx.x < WarpSize) {
+    if (lane < WarpSize) {
         MD res2;
-        res2 = (threadIdx.x < WarpNum) ? shared[threadIdx.x] : MD{-FLT_MAX, 0.0f};
+        res2 = (threadIdx.x < WarpNum) ? shared[lane] : MD{-FLT_MAX, 0.0f};
          
         res1 = softmax_warp_reduc<WarpNum>(res2);
 
@@ -105,9 +106,9 @@ __global__ void online_softmax_f32_f4(float *inp, float* out, int N) {
     }
     __syncthreads();
 
-    if (threadIdx.x < WarpSize) {
+    if (lane < WarpSize) {
         MD block_res;
-        block_res = (threadIdx.x < WarpNum) ? shared[threadIdx.x] : MD[-FLT_MAX, 1.0f];
+        block_res = (threadIdx.x < WarpNum) ? shared[lane] : MD[-FLT_MAX, 1.0f];
 
         block_res = softmax_warp_reduc<WarpNum>(block_res);
 
