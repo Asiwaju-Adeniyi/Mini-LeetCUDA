@@ -46,5 +46,4 @@ __global__ void matmulCute(const T* A, T* B, T *C, int M, int N, int K) {
      }
 
      cute::copy(gtCF, gtC);
-
 }

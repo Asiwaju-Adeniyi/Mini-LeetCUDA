@@ -6,7 +6,7 @@
 #include <cmath> 
 #include <iostream>
 
-__device__ __forceinline__ float warpReduceMax(float value) {
+__device__ __forceinline__ float warpReducMax(float value) {
     #pragma unroll
     for (int delta = 16; delta > 0; delta >>= 1) {
         float temp = __shfl_down_sync(0xffffffff, value, delta);
@@ -18,7 +18,7 @@ __device__ __forceinline__ float warpReduceMax(float value) {
 __global__ void testWarpMax(const float *in, float *out) {
     int tid = threadIdx.x;
     float v = in[tid];
-    float result = warpReduceMax(v);
+    float result = warpReducMax(v);
     if (tid == 0) {
         out[0] = result;
     }
