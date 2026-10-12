@@ -3,23 +3,32 @@
 #include <thrust/device_vector.h>
 
 
-template <const int elemPerT = 8, const int M, const int N, const int K> 
+#include <cute/tensor.hpp>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
-__global__ void testCuteMatmul (float *c, const float *a, const float *b, int N) {
-  auto mA = make_tensor(make_gmem_ptr(a), make_shape(M, K), Int<1>{}, M);
-  auto mB = make_tensor(make_gmem_ptr(b), make_shape(N, K), Int<1>{}, N);
-  auto mC = make_tensor(make_gmem_ptr(c), make_shape(M, N), Int<1>{}, K);
+template <class T, int tileM, int tileN, int tileK> 
 
-  auto bM = Int<128>{};
-  auto bN = Int<128>{};
-  auto bK = Int<8>{};
-  
+__global__ void matmulCute(const T* A, T* B, T *C, int M, int N, int K) {
+    
+    Tensor tA = make_tensor(make_gmem_ptr(A), make_shape(M, K), make_stride(K, Int<1>{}));
+    Tensor tB = make_tensor(make_gmem_ptr(A), make_shape(N, K), make_stride(K, Int<1>{}));
+    Tensor tC = make_tensor(make_gmem_ptr(A), make_shape(M, N), make_stride(N, Int<1>{}));
 
-  // Shared memory buffers
-__shared__ TA smemA[bM * bK];
-__shared__ TB smemB[bN * bK];
-auto sA = make_tensor(make_smem_ptr(smemA), make_layout(make_shape(bM,bK)));
-auto sB = make_tensor(make_smem_ptr(smemB), make_layout(make_shape(bN,bK)));  
+    
+    int col = blockIdx.x;
+    int row = blockIdx.y;
 
+    Tensor tAtile = local_tile(A, make_tile(Int<tileM>{}, Int<tileK>{}), make_coord(row, _));
+    Tensor tBtile = local_tile(B, make_tile(Int<tileN>{}, Int<tileK>{}), make_coord(col, _));
+    Tensor tCtile = local_tile(C, make_tile(Int<tileM>{}, Int<tileN>{}), make_coord(row,col));
+
+    TiledMMA tiledMMA;
+
+    auto tr_mma = tiledMMA.get_slice(threadIdx.x);
+
+    auto gtA = tr_mma.partition_A(tAtile);
+    auto gtB = tr_mma.partition_B(tBtile);
+    auto gtC = tr_mma.partition_C(tCtile);
 
 }
