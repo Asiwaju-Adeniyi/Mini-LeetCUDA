@@ -1,7 +1,3 @@
-#include <cute/tensor.hpp>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-
 
 #include <cute/tensor.hpp>
 #include <thrust/host_vector.h>
@@ -37,5 +33,18 @@ __global__ void matmulCute(const T* A, T* B, T *C, int M, int N, int K) {
     auto gtCF = tr_mma.partition_fragment_C(gtC(_, _, 0));
 
     clear(gtCF);
+
+    int numTileK = size<2>(gA);
+
+    #pragma unroll 1
+
+     for (int i = 0; i < numTileK; ++i) {
+      cute::copy(gtA(_, _, _, i), gtAF);
+      cute::copy(gtB(_, _, _, i), gtBF);
+      
+      cute::gemm(tiled_mma, gtCF, gtAF, gtBF, gtCF);
+     }
+
+     cute::copy(gtCF, gtC);
 
 }
