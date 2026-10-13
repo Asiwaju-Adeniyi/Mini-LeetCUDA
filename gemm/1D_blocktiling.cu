@@ -39,7 +39,7 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
 
 
 
-    float accum[TM];
+    float tResults[TM];
     for (int i = 0; i < TM; i++) tResults[i] = f2h(0.0f);
 
         for (int bkIdx = 0; bkIdx < K; bkIdx++) {

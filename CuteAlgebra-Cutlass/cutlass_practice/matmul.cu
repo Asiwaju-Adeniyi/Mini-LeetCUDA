@@ -30,11 +30,11 @@ __global__ void matmulCute(const T* A, T* B, T *C, int M, int N, int K) {
 
     auto gtAF = tr_mma.partition_fragment_A(gtA(_, _, 0));
     auto gtBF = tr_mma.partition_fragment_B(gtB(_, _, 0));
-    auto gtCF = tr_mma.partition_fragment_C(gtC(_, _, 0));
+    auto gtCF = tr_mma.partition_fragment_C(gtC(_, _));
 
     clear(gtCF);
 
-    int numTileK = size<2>(gA);
+    int numTileK = size<2>(tAtile);
 
     #pragma unroll 1
 
