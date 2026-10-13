@@ -54,8 +54,8 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
             for (int id = 0; id < BK; id++) {
                 float accumB = sB[innerRowB * BN + innerColB];
 
-                for (int dot = 0; dot < BK; dot++) {
-                   accum[dot] += sA[(threadRow * TM + dot) * K + id] * accumB;
+                for (int dot = 0; dot < TM; dot++) {
+                   accum[dot] += sA[(threadRow * TM + dot) * BK + id] * accumB;
                 } 
             }
              __syncthreads();
