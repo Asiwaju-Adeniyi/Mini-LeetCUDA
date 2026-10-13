@@ -49,7 +49,7 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
             __syncthreads();
 
             A += BK;
-            B += BN * N;
+            B += BK * N;
 
             for (int id = 0; id < BK; id++) {
                 float accumB = sB[innerRowB * BN + innerColB];
@@ -63,6 +63,8 @@ __global__ void 1D_blocktiled(int M, int N, int K, float *a, float*b, float* c) 
 
         for (int resIdx = 0; resIdx < TM; resIdx++) {
             C[(threadRow * TM + resIdx) * N + threadCol] = accum[resIdx];
+
+            return; 
         }
 }
 
@@ -111,6 +113,8 @@ __global__ void half_1D_blocktiled(int M, int N, int K, half* __restrict__ A, ha
 
     for (int resIdx = 0; resIdx < TM; resIdx++) {
         C[(threadRow * TM + resIdx) * N + threadCol] = tResults[resIdx];
+        
+        return;
     }
 }
 
