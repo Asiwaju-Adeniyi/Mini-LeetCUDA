@@ -60,6 +60,9 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
 
         __syncthreads();
 
+        A += BK;
+        B += BK * N;  
+
     for (int dotIdx = 0; dotIdx < BK) {
         for (int i = 0; i < TM; i++) {
             regM{i} = sA[(threadRow * TM + i) * BK + dotIdx];
