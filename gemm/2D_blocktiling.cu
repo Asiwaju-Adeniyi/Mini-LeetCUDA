@@ -45,8 +45,8 @@ __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1) 2D_blocktiled(int M,
 
      float trpT[TM * TN] = {0.0};
 
-     float regM{TM} = {0.0};
-     float regN{TN} = {0.0};
+     float regM[TM] = {0.0};
+     float regN[TN] = {0.0};
 
     for (int bkIdx = 0; bkIdx < K; bkIdx += BK) { 
 
