@@ -4,6 +4,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <cute/tensor.hpp>
+
 using namespace cute;
 
 // C (M by N) = A (M by K) * B^T, where B is stored as (N by K). Both have K contiguous.
