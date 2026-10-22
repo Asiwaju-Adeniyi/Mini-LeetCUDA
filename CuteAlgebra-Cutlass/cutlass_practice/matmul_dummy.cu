@@ -1,4 +1,3 @@
-%%writefile cute_gemm.cu
 #include <cstdio>
 #include <cuda_runtime.h>
 #include <thrust/host_vector.h>
