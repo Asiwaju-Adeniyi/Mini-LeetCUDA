@@ -1,82 +1,81 @@
-#include <algorithm> 
-#include <float.h>
 #include <cuda_runtime.h>
-#include <stdio.h>
-#include <stdlib.h> 
+
+#include <cmath>
+#include <cstdio>
 #include <vector>
-#include <iostream>
 
-#define FLOAT4(value)(reinterpret_cast<float4 *> (&(value)) [0])
+#include "../common/cuda_utils.cuh"
 
-__global__ void elemwise_f32x4(float* a, float* b, float* c, int N) {
-    int idx = 4 * (threadIdx.x + blockDim.x * blockIdx.x);
+// Vectorized elementwise add: each thread handles four consecutive floats.
+__global__ void elemwise_f32x4(const float* __restrict__ a,
+                               const float* __restrict__ b,
+                               float* __restrict__ c, int N) {
+    const int idx = 4 * (blockIdx.x * blockDim.x + threadIdx.x);
 
-    if (idx < N) {
-        float4 reg_a = FLOAT4(a[idx]);
-        float4 reg_b = FLOAT4(b[idx]);
-        float4 reg_c;
+    if (idx + 4 <= N) {
+        const float4 va = reinterpret_cast<const float4*>(a + idx)[0];
+        const float4 vb = reinterpret_cast<const float4*>(b + idx)[0];
 
-        reg_c.x = reg_a.x + reg_b.x;
-        reg_c.y = reg_a.y + reg_b.y;
-        reg_c.z = reg_a.z + reg_b.z;
-        reg_c.w = reg_a.w + reg_b.w;
+        float4 vc;
+        vc.x = va.x + vb.x;
+        vc.y = va.y + vb.y;
+        vc.z = va.z + vb.z;
+        vc.w = va.w + vb.w;
 
-        FLOAT4(c[idx]) = reg_c;
+        reinterpret_cast<float4*>(c + idx)[0] = vc;
+    } else if (idx < N) {
+        for (int i = 0; idx + i < N; ++i) {
+            c[idx + i] = a[idx + i] + b[idx + i];
+        }
     }
 }
 
 int main() {
-    int N = 256 * 256;
+    constexpr int N = 1 << 20;
+    constexpr int threads = 256;
 
     std::vector<float> h_a(N);
     std::vector<float> h_b(N);
     std::vector<float> h_c(N);
+    fill_random(h_a);
+    fill_random(h_b);
 
-    for (int i = 0; i < N; i++) {
-        h_a[i] = rand() / (float)RAND_MAX;
-        h_b[i] = rand() / (float)RAND_MAX;
+    float* d_a = nullptr;
+    float* d_b = nullptr;
+    float* d_c = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_a, h_a.size() * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_b, h_b.size() * sizeof(float)));
+    CUDA_CHECK(cudaMalloc(&d_c, h_c.size() * sizeof(float)));
+
+    CUDA_CHECK(cudaMemcpy(d_a, h_a.data(), h_a.size() * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_b, h_b.data(), h_b.size() * sizeof(float),
+                          cudaMemcpyHostToDevice));
+
+    const int blocks = ceil_div(N, 4 * threads);
+
+    elemwise_f32x4<<<blocks, threads>>>(d_a, d_b, d_c, N);
+    CUDA_CHECK_LAST();
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, h_c.size() * sizeof(float),
+                          cudaMemcpyDeviceToHost));
+
+    int bad = 0;
+    for (int i = 0; i < N; ++i) {
+        const float ref = h_a[i] + h_b[i];
+        if (std::fabs(h_c[i] - ref) > 1e-6f * std::max(1.0f, std::fabs(ref))) {
+            ++bad;
+        }
     }
+    std::printf("elemwise_f32x4 mismatches: %d/%d\n", bad, N);
 
-    float *d_a = nullptr;
-    float *d_b = nullptr;
-    float *d_c = nullptr;
+    const float ms = benchmark_ms([&]() {
+        elemwise_f32x4<<<blocks, threads>>>(d_a, d_b, d_c, N);
+    });
+    std::printf("elemwise_f32x4: %.3f ms\n", ms);
 
-    size_t size = N * sizeof(float);
-
-    int tpB = 256/4;
-    int bpG = (N + 256 - 1) / 256;
-
-    cudaMalloc(&d_a, size);
-    cudaMalloc(&d_b, size);
-    cudaMalloc(&d_c, size);
-
-    cudaMemcpy(d_a, h_a.data(), size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_b, h_b.data(), size, cudaMemcpyHostToDevice);
-
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    cudaEventRecord(start);
-    elemwise_f32x4<<<bpG, tpB>>>(d_a, d_b, d_c, N);
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-
-    float gpuDuration = 0.0f;
-    cudaEventElapsedTime(&gpuDuration, start, stop);
-
-    std::cout << gpuDuration << " ms" << std::endl;
-
-    cudaMemcpy(h_c.data(), d_c, size, cudaMemcpyDeviceToHost);
-
-
-
-   cudaFree(d_a);
-   cudaFree(d_b);
-   cudaFree(d_c);
-
-   return 0;
-
-
+    CUDA_CHECK(cudaFree(d_a));
+    CUDA_CHECK(cudaFree(d_b));
+    CUDA_CHECK(cudaFree(d_c));
+    return 0;
 }
-

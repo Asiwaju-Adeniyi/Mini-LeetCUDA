@@ -29,10 +29,12 @@ The goal is simple but demanding:
 
 ### Kernels Covered
 
-- Reduction  
-- GEMM (matrix multiplication)  
-- Softmax  
-- LayerNorm  
+- Elementwise / vector add
+- Reduction
+- GEMM (matrix multiplication)
+- Softmax
+- LayerNorm
+- Mixture-of-Experts building blocks (GEMV, top-k)
 - Attention (FlashAttention-style)
 
 ---
@@ -75,29 +77,72 @@ Each kernel follows the same development pipeline:
 
 ---
 
+## Compiling and profiling on Modal
+
+No local CUDA toolkit is required. `modal/run_cuda.py` copies this repository
+into a CUDA 12.4 image, compiles for the T4 (`sm_75`), and can run Nsight
+Compute.
+
+Compile every standalone translation unit without linking (useful for checking
+files that do not have a `main()` yet):
+
+```bash
+modal run modal/run_cuda.py --compile-all
+```
+
+Compile, run, and profile one kernel:
+
+```bash
+modal run modal/run_cuda.py \
+  --kernel gemm/naive_f32.cu \
+  --name sgemm_naive
+```
+
+`ncu` reports are saved to the `minileetcuda-reports` Modal volume. Inspect a
+report with:
+
+```bash
+ncu --import <report>.ncu-rep --page details
+```
+
+`CuteAlgebra-Cutlass/`, `attention/flashv1.cu`, and `trainingloop/tl.cu` are
+excluded from `--compile-all` because they are not standalone translation units
+yet.
+
+---
+
 ## Repository Structure
 
 ```
-mini-leetcuda/
-├── reduction/     # Reduction kernels (naive → optimized → fully optimized)
-├── gemm/          # Matrix multiplication kernels
-├── softmax/       # Softmax + online softmax implementations
-├── layernorm/     # LayerNorm and RMSNorm
-├── attention/     # Attention / FlashAttention-style kernels
-│
-├── benchmarks/    # Performance benchmarks
-├── profiling/     # Nsight Systems / Nsight Compute outputs
-├── bindings/      # PyTorch C++/CUDA extensions
-├── tests/         # Correctness tests vs PyTorch
-└── docs/          # Explanations and kernel breakdowns
+Mini-LeetCUDA/
+├── common/              # Shared CUDA helpers (checks, timing, reductions)
+├── reduction/           # Reduction kernels
+├── gemm/                # Matrix multiplication kernels
+├── softmax/             # Softmax + online softmax implementations
+├── layernorm/           # LayerNorm implementations
+├── MoE/                 # GEMV and top-k kernels
+├── attention/           # Attention / FlashAttention-style kernels
+├── vector addition/     # Elementwise add kernels
+├── CudaForDLClassQuizzes/
+├── CuteAlgebra-Cutlass/
+├── trainingloop/
+└── modal/               # Remote T4 compile/profile runner
 ```
 
+Kernel files use a dtype suffix:
 
-Each kernel folder contains:
-- `naive.cu`
-- `optimized.cu`
-- `fully_optimized.cu`
-- `README.md` (kernel-specific explanation)
+- `*_f32.cu` — fp32 storage and math
+- `*_f16.cu` — fp16 storage with fp32 accumulation where it matters
+- `*_f16_f32.cu` — fp16 input with fp32 output / accumulation
+- `*x4.cu`, `*x8.cu` — vectorized variants
+
+Most `.cu` files are standalone: they allocate inputs, run the kernel, check the
+result against a CPU reference, and benchmark with CUDA events. Shared helpers
+live in `common/`:
+
+- `common/cuda_utils.cuh` — `CUDA_CHECK`, random initialization, event timing,
+  GFLOP/s calculation, and sampled GEMM verification
+- `common/reductions.cuh` — warp- and block-wide sum / max reductions
 
 ---
 
