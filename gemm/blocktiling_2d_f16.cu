@@ -6,9 +6,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// 2D block tiling with fp16 storage and fp32 accumulation.
-// Each thread computes a TM x TN tile of C.
-// Assumes M, N and K are multiples of BM, BN and BK respectively.
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
 __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1)
 blocktiling_2d_f16(const __half* __restrict__ a,

@@ -80,17 +80,9 @@ Each kernel follows the same development pipeline:
 ## Compiling and profiling on Modal
 
 No local CUDA toolkit is required. `modal/run_cuda.py` copies this repository
-into a CUDA 12.4 image, compiles for the T4 (`sm_75`), and can run Nsight
-Compute.
+into a CUDA 12.4 image, compiles for the T4 (`sm_75`), and runs Nsight Compute.
 
-Compile every standalone translation unit without linking (useful for checking
-files that do not have a `main()` yet):
-
-```bash
-modal run modal/run_cuda.py --compile-all
-```
-
-Compile, run, and profile one kernel:
+Compile, run, and profile one standalone kernel:
 
 ```bash
 modal run modal/run_cuda.py \
@@ -104,10 +96,6 @@ report with:
 ```bash
 ncu --import <report>.ncu-rep --page details
 ```
-
-`CuteAlgebra-Cutlass/`, `attention/flashv1.cu`, and `trainingloop/tl.cu` are
-excluded from `--compile-all` because they are not standalone translation units
-yet.
 
 ---
 
@@ -129,14 +117,12 @@ Mini-LeetCUDA/
 └── modal/               # Remote T4 compile/profile runner
 ```
 
-Kernel files use a dtype suffix:
+The GEMM files use a dtype suffix:
 
 - `*_f32.cu` — fp32 storage and math
-- `*_f16.cu` — fp16 storage with fp32 accumulation where it matters
-- `*_f16_f32.cu` — fp16 input with fp32 output / accumulation
-- `*x4.cu`, `*x8.cu` — vectorized variants
+- `*_f16.cu` — fp16 storage with fp32 accumulation
 
-Most `.cu` files are standalone: they allocate inputs, run the kernel, check the
+The GEMM files are standalone: they allocate inputs, run the kernel, check the
 result against a CPU reference, and benchmark with CUDA events. Shared helpers
 live in `common/`:
 

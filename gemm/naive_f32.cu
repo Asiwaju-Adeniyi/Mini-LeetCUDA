@@ -5,8 +5,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// Naive GEMM: one thread per output element.
-// C[M,N] = A[M,K] * B[K,N], all matrices row-major.
 __device__ __forceinline__ void naive_gemm_impl(const float* __restrict__ a,
                                                 const float* __restrict__ b,
                                                 float* __restrict__ c, int M,
@@ -23,14 +21,12 @@ __device__ __forceinline__ void naive_gemm_impl(const float* __restrict__ a,
     }
 }
 
-// Kept as a separate kernel name so it can be selected with ncu.
 __global__ void matmul_float32(const float* __restrict__ a,
                                const float* __restrict__ b,
                                float* __restrict__ c, int M, int N, int K) {
     naive_gemm_impl(a, b, c, M, N, K);
 }
 
-// Same math, kept for the name used in the original file / Modal runner.
 __global__ void sgemm_naive(const float* __restrict__ a,
                             const float* __restrict__ b,
                             float* __restrict__ c, int M, int N, int K) {
@@ -63,7 +59,6 @@ int main() {
     const dim3 block(16, 16);
     const dim3 grid(ceil_div(N, block.x), ceil_div(M, block.y));
 
-    // ---- matmul_float32 ----------------------------------------------------
     CUDA_CHECK(cudaMemset(d_c, 0, h_c.size() * sizeof(float)));
     matmul_float32<<<grid, block>>>(d_a, d_b, d_c, M, N, K);
     CUDA_CHECK_LAST();
@@ -81,7 +76,6 @@ int main() {
     std::printf("matmul_float32: %.3f ms, %.2f GFLOP/s\n", matmul_ms,
                 gflops(M, N, K, matmul_ms));
 
-    // ---- sgemm_naive -------------------------------------------------------
     CUDA_CHECK(cudaMemset(d_c, 0, h_c.size() * sizeof(float)));
     sgemm_naive<<<grid, block>>>(d_a, d_b, d_c, M, N, K);
     CUDA_CHECK_LAST();

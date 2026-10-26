@@ -1,67 +1,71 @@
+#include <iostream>
+#include <algorithm> 
+#include <float.h>
 #include <cuda_runtime.h>
-
-#include <cmath>
-#include <cstdio>
+#include <stdio.h>
+#include <stdlib.h> 
 #include <vector>
 
-#include "../common/cuda_utils.cuh"
 
-// Naive elementwise add: one thread per element.
-__global__ void naiveVecAdd(const float* __restrict__ a,
-                            const float* __restrict__ b,
-                            float* __restrict__ c, int N) {
-    const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < N) {
-        c[idx] = a[idx] + b[idx];
-    }
+__global__ void naiveVecAdd(const float *a, const float *b, float *c, int N) {
+    int idx = threadIdx.x + blockDim.x * blockIdx.x;
+
+    if (idx < N)
+
+    c[idx] = a[idx] + b[idx];
 }
 
 int main() {
-    constexpr int N = 1 << 20;
-    constexpr int threads = 256;
 
-    std::vector<float> h_a(N);
-    std::vector<float> h_b(N);
-    std::vector<float> h_c(N);
-    fill_random(h_a);
-    fill_random(h_b);
+int N = 16 * 16;
 
-    float* d_a = nullptr;
-    float* d_b = nullptr;
-    float* d_c = nullptr;
-    CUDA_CHECK(cudaMalloc(&d_a, h_a.size() * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&d_b, h_b.size() * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&d_c, h_c.size() * sizeof(float)));
+std::vector<float> h_a(N);
+std::vector<float> h_b(N);
+std::vector<float> h_c(N);
 
-    CUDA_CHECK(cudaMemcpy(d_a, h_a.data(), h_a.size() * sizeof(float),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_b, h_b.data(), h_b.size() * sizeof(float),
-                          cudaMemcpyHostToDevice));
+for (int i = 0; i < N; i++) {
+    h_a[i] = rand() / (float)RAND_MAX;
+    h_b[i] = rand() / (float)RAND_MAX;
+};
 
-    const int blocks = ceil_div(N, threads);
+float *d_a = nullptr;
+float *d_b = nullptr;
+float *d_c = nullptr;
 
-    naiveVecAdd<<<blocks, threads>>>(d_a, d_b, d_c, N);
-    CUDA_CHECK_LAST();
-    CUDA_CHECK(cudaDeviceSynchronize());
-    CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, h_c.size() * sizeof(float),
-                          cudaMemcpyDeviceToHost));
+size_t size = N * sizeof(float);
 
-    int bad = 0;
-    for (int i = 0; i < N; ++i) {
-        const float ref = h_a[i] + h_b[i];
-        if (std::fabs(h_c[i] - ref) > 1e-6f * std::max(1.0f, std::fabs(ref))) {
-            ++bad;
-        }
-    }
-    std::printf("naiveVecAdd mismatches: %d/%d\n", bad, N);
+    int tpB = 256;
+    int bpG = (N + tpB - 1) / tpB;
 
-    const float ms = benchmark_ms([&]() {
-        naiveVecAdd<<<blocks, threads>>>(d_a, d_b, d_c, N);
-    });
-    std::printf("naiveVecAdd: %.3f ms\n", ms);
+    cudaMalloc(&d_a, size);
+    cudaMalloc(&d_b, size);
+    cudaMalloc(&d_c, size);
 
-    CUDA_CHECK(cudaFree(d_a));
-    CUDA_CHECK(cudaFree(d_b));
-    CUDA_CHECK(cudaFree(d_c));
-    return 0;
+    cudaMemcpy(d_a, h_a.data(), size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b.data(), size, cudaMemcpyHostToDevice);
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start);
+    naiveVecAdd<<<bpG, tpB>>>(d_a, d_b, d_c, N);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float gpuDuration = 0;
+    cudaEventElapsedTime(&gpuDuration, start, stop);
+
+    std::cout << gpuDuration << "ms." << std::endl;
+
+    cudaMemcpy(h_c.data(), d_c, size, cudaMemcpyDeviceToHost);
+
+    
+
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
+
+
+return 0;
 }
+

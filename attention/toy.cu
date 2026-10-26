@@ -1,173 +1,151 @@
+#include <float.h>
 #include <cuda_runtime.h>
-
-#include <cfloat>
-#include <cmath>
-#include <cstdio>
+#include <stdlib.h> 
 #include <vector>
+#include <iostream>
 
-#include "../common/cuda_utils.cuh"
 
-// Toy attention with online softmax.
-//
-// Problem size is intentionally tiny: 2 query rows, 4 keys, head dimension 8.
-// One block of 32 threads computes the 2x4 score matrix cooperatively, then
-// one thread per query row performs an online-softmax accumulation over keys.
-__global__ void toy_attention(const float* __restrict__ q,
-                              const float* __restrict__ k,
-                              const float* __restrict__ v,
-                              float* __restrict__ o) {
-    constexpr int kQueries = 2;
-    constexpr int kKeys = 4;
-    constexpr int kHeadDim = 8;
+__global__ void dummy(const float *Q, const float *K, const float *V, float *O){
+ int tid = threadIdx.x;
 
-    __shared__ float sQ[kQueries * kHeadDim];
-    __shared__ float sK[kKeys * kHeadDim];
-    __shared__ float sV[kKeys * kHeadDim];
-    __shared__ float sS[kQueries * kKeys];
+   __shared__ float sQ[16];
+   __shared__ float sK[16];
+   __shared__ float sS[4];
+   __shared__ float sV[16];
+   int rowStart{0}; 
 
-    for (int i = threadIdx.x; i < kQueries * kHeadDim; i += blockDim.x) {
-        sQ[i] = q[i];
-    }
-    for (int i = threadIdx.x; i < kKeys * kHeadDim; i += blockDim.x) {
-        sK[i] = k[i];
-        sV[i] = v[i];
-    }
-    __syncthreads();
+   float rowMax = -INFINITY;
+   float rowSum = {}; 
+   float A[8] = {};
+   float D{8.f};
+    
+        sQ[rowStart * 8 + tid] = Q[(rowStart) * 8 + tid];
+        sQ[(rowStart + 1) * 8 + tid] = Q[(rowStart + 1) * 8 + tid];
+        __syncthreads();
+ 
 
-    // One thread per (query, key) pair.
-    if (threadIdx.x < kQueries * kKeys) {
-        const int row = threadIdx.x / kKeys;
-        const int key = threadIdx.x % kKeys;
+  for(int kRowStart = 0; kRowStart < 4; kRowStart += 2) {
+    float accum = {};
+    int tRow = threadIdx.x / 2;
+    int tCol = threadIdx.x % 2;
 
-        float dot = 0.0f;
-        for (int d = 0; d < kHeadDim; ++d) {
-            dot += sQ[row * kHeadDim + d] * sK[key * kHeadDim + d];
-        }
-        sS[row * kKeys + key] = dot * rsqrtf(static_cast<float>(kHeadDim));
-    }
-    __syncthreads();
+        sK[(rowStart) * 8 + tid] = K[kRowStart * 8 + tid];
+        sK[(rowStart + 1) * 8 + tid] = K[(kRowStart + 1) * 8 + tid];
 
-    // One thread per query row.  The running state is (max, sum, output).
-    if (threadIdx.x < kQueries) {
-        const int row = threadIdx.x;
-        float running_max = -FLT_MAX;
-        float running_sum = 0.0f;
-        float acc[kHeadDim] = {0.0f};
+        sV[rowStart * 8 + tid] = V[kRowStart * 8 + tid];
+        sV[(rowStart + 1) * 8 + tid] = V[(kRowStart + 1) * 8 + tid];
 
-        for (int key = 0; key < kKeys; ++key) {
-            const float score = sS[row * kKeys + key];
-            const float new_max = fmaxf(running_max, score);
-            const float scale = __expf(running_max - new_max);
-            const float weight = __expf(score - new_max);
+         __syncthreads();
 
-            running_sum = running_sum * scale + weight;
-            for (int d = 0; d < kHeadDim; ++d) {
-                acc[d] = acc[d] * scale + weight * sV[key * kHeadDim + d];
+         if (tid < 4) {for (int i = 0; i < 8; i++) {
+               accum += sQ[tRow * 8 + i] * sK[tCol * 8 + i];
+         }
+         
+         sS[tRow * 2 + tCol] = accum * rsqrtf(D);
+         };
+
+          __syncthreads();
+
+          if (tid == 0) {
+
+                float oldMax = rowMax;
+                float tileMax = fmaxf(sS[0], sS[1]);
+                float newMax = fmaxf(oldMax, tileMax);
+                float scale = expf(oldMax - newMax);
+
+                rowSum = rowSum * scale + expf(sS[0] - newMax) + expf(sS[1] - newMax);
+
+                for (int d = 0; d < 8; d++) {
+                    A[d] = A[d] * scale + (expf(sS[0] - newMax) * sV[d]) + (expf(sS[1] - newMax) * sV[d + 8]);
+                }
+
+                rowMax = newMax;
+
+
+          }
+
+          if (tid == 2){
+                float oldMax = rowMax;
+                float tileMax = fmaxf(sS[2], sS[3]);
+                float newMax = fmaxf(oldMax, tileMax);
+                float scale = expf(oldMax - newMax);
+
+                rowSum = rowSum * scale + expf(sS[2] - newMax) + expf(sS[3] - newMax);
+
+                    for (int d = 0; d < 8; d++) {
+                    A[d] = A[d] * scale + (expf(sS[2] - newMax) * sV[d]) + (expf(sS[3] - newMax) * sV[d + 8]);
+                    
             }
-            running_max = new_max;
-        }
+            rowMax = newMax;
 
-        for (int d = 0; d < kHeadDim; ++d) {
-            o[row * kHeadDim + d] = acc[d] / running_sum;
-        }
+          }
+
+          }
+
+            __syncthreads();
+
+if (tid == 0) {
+    for (int d = 0; d < 8; d++) {
+        O[0 * 8 + d] = A[d] / rowSum;
     }
 }
 
-static void cpu_attention(const std::vector<float>& q,
-                          const std::vector<float>& k,
-                          const std::vector<float>& v, int queries, int keys,
-                          int head_dim, std::vector<float>& o) {
-    const float scale = 1.0f / std::sqrt(static_cast<float>(head_dim));
-
-    for (int row = 0; row < queries; ++row) {
-        std::vector<float> scores(keys);
-        float max_score = -FLT_MAX;
-        for (int key = 0; key < keys; ++key) {
-            float dot = 0.0f;
-            for (int d = 0; d < head_dim; ++d) {
-                dot += q[row * head_dim + d] * k[key * head_dim + d];
-            }
-            scores[key] = dot * scale;
-            max_score = std::max(max_score, scores[key]);
-        }
-
-        float sum = 0.0f;
-        for (int key = 0; key < keys; ++key) {
-            scores[key] = std::exp(scores[key] - max_score);
-            sum += scores[key];
-        }
-
-        for (int d = 0; d < head_dim; ++d) {
-            float acc = 0.0f;
-            for (int key = 0; key < keys; ++key) {
-                acc += scores[key] * v[key * head_dim + d];
-            }
-            o[row * head_dim + d] = acc / sum;
-        }
+if (tid == 2) {
+    for (int d = 0; d < 8; d++) {
+        O[1 * 8 + d] = A[d] / rowSum;
     }
 }
 
-static float max_abs_diff(const std::vector<float>& a,
-                          const std::vector<float>& b) {
-    float max_diff = 0.0f;
-    for (size_t i = 0; i < a.size(); ++i) {
-        max_diff = std::max(max_diff, std::fabs(a[i] - b[i]));
-    }
-    return max_diff;
+return;
 }
+
 
 int main() {
-    constexpr int queries = 2;
-    constexpr int keys = 4;
-    constexpr int head_dim = 8;
+    int N = 2 * 8;
+    std::vector<float> q = {1.0f,2.0f,3.0f,4.0f,5.0f,6.0f,7.0f,8.0f,2.0f,2.0f,2.0f,2.0f, 2.0f, 2.0f, 2.0f, 2.0f};
+    std::vector<float> k = {1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,1.0f,2.0f,3.0f,4.0f,5.0f,6.0f,7.0f,8.0f};
+    std::vector<float> s(N);
 
-    std::vector<float> h_q(queries * head_dim);
-    std::vector<float> h_k(keys * head_dim);
-    std::vector<float> h_v(keys * head_dim);
-    std::vector<float> h_o(queries * head_dim);
-    std::vector<float> h_ref(queries * head_dim);
+    float *d_q = nullptr;
+    float *d_k = nullptr;
+    float *d_s = nullptr;
 
-    fill_random(h_q);
-    fill_random(h_k);
-    fill_random(h_v);
-    cpu_attention(h_q, h_k, h_v, queries, keys, head_dim, h_ref);
+    size_t size = N * sizeof(float);
+    
+    int tpB = 8;
+    int bpG = 1;
 
-    float* d_q = nullptr;
-    float* d_k = nullptr;
-    float* d_v = nullptr;
-    float* d_o = nullptr;
-    CUDA_CHECK(cudaMalloc(&d_q, h_q.size() * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&d_k, h_k.size() * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&d_v, h_v.size() * sizeof(float)));
-    CUDA_CHECK(cudaMalloc(&d_o, h_o.size() * sizeof(float)));
+     cudaMalloc(&d_q, size);
+     cudaMalloc(&d_k, size);
+     cudaMalloc(&d_s, size);
 
-    CUDA_CHECK(cudaMemcpy(d_q, h_q.data(), h_q.size() * sizeof(float),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_k, h_k.data(), h_k.size() * sizeof(float),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_v, h_v.data(), h_v.size() * sizeof(float),
-                          cudaMemcpyHostToDevice));
+     cudaMemcpy(d_q, q.data(), size, cudaMemcpyHostToDevice);
+     cudaMemcpy(d_k, k.data(), size, cudaMemcpyHostToDevice);
 
-    const dim3 block(32);
-    const dim3 grid(1);
+     cudaEvent_t start, stop;
+     cudaEventCreate(&start);
+     cudaEventCreate(&stop);
 
-    toy_attention<<<grid, block>>>(d_q, d_k, d_v, d_o);
-    CUDA_CHECK_LAST();
-    CUDA_CHECK(cudaDeviceSynchronize());
-    CUDA_CHECK(cudaMemcpy(h_o.data(), d_o, h_o.size() * sizeof(float),
-                          cudaMemcpyDeviceToHost));
+     cudaEventRecord(start);
+     dummy<<<bpG, tpB>>>(d_q,d_k, d_s);
+     cudaEventRecord(stop);
+     cudaEventSynchronize(stop);
+     cudaMemcpy(s.data(), d_s, size, cudaMemcpyDeviceToHost);
 
-    std::printf("toy_attention max abs diff: %.6g\n",
-                max_abs_diff(h_o, h_ref));
+    for (int i = 0; i < s.size(); i++) {
+        std::cout << s[i] << std::endl;
+    }
 
-    const float ms = benchmark_ms([&]() {
-        toy_attention<<<grid, block>>>(d_q, d_k, d_v, d_o);
-    });
-    std::printf("toy_attention: %.3f ms\n", ms);
+     float gpuTimer;
 
-    CUDA_CHECK(cudaFree(d_q));
-    CUDA_CHECK(cudaFree(d_k));
-    CUDA_CHECK(cudaFree(d_v));
-    CUDA_CHECK(cudaFree(d_o));
-    return 0;
+     cudaEventElapsedTime(&gpuTimer, start, stop);
+
+     std::cout << gpuTimer << "ms." << std::endl;
+
+     
+
+     cudaFree(d_q); cudaFree(d_k), cudaFree(d_s);
+
+     return 0;
+
 }

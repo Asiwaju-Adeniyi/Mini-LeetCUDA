@@ -5,7 +5,6 @@
 #include <cfloat>
 #include <cmath>
 
-// Warp-wide sum.  Every lane receives the result.
 template <const int kW = 32>
 __device__ __forceinline__ float warpreduc(float val) {
 #pragma unroll
@@ -15,7 +14,6 @@ __device__ __forceinline__ float warpreduc(float val) {
     return val;
 }
 
-// Warp-wide max.  Every lane receives the result.
 template <const int kW = 32>
 __device__ __forceinline__ float warp_reduce_max(float val) {
 #pragma unroll
@@ -25,7 +23,6 @@ __device__ __forceinline__ float warp_reduce_max(float val) {
     return val;
 }
 
-// Block-wide sum.  Assumes blockDim.x == NumThreads and NumThreads % 32 == 0.
 template <const int NumThreads = 256>
 __device__ __forceinline__ float block_reduce_sum(float val) {
     constexpr int NumWarps = (NumThreads + 31) / 32;
@@ -52,7 +49,6 @@ __device__ __forceinline__ float block_reduce_sum(float val) {
     return shared[0];
 }
 
-// Block-wide max.  Assumes blockDim.x == NumThreads and NumThreads % 32 == 0.
 template <const int NumThreads = 256>
 __device__ __forceinline__ float block_reduce_max(float val) {
     constexpr int NumWarps = (NumThreads + 31) / 32;

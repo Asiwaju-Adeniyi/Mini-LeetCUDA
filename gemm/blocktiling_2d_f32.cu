@@ -5,9 +5,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// 2D block tiling with vectorized global loads.
-// Each thread computes a TM x TN tile of C.
-// Assumes M, N and K are multiples of BM, BN and BK respectively.
 template <const int BM, const int BN, const int BK, const int TM, const int TN>
 __global__ void __launch_bounds__((BM * BN) / (TM * TN), 1)
 blocktiling_2d(const float* __restrict__ a, const float* __restrict__ b,

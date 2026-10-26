@@ -6,8 +6,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// 1D block tiling with fp16 storage and fp32 accumulation.
-// Assumes M, N and K are multiples of BM, BN and BK respectively.
 template <const int BM, const int BN, const int BK, const int TM>
 __global__ void __launch_bounds__((BM / TM) * BN)
 blocktiling_1d_f16(const __half* __restrict__ a,

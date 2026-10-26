@@ -5,8 +5,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// 1D block tiling: each thread computes TM consecutive outputs along M.
-// Assumes M, N and K are multiples of BM, BN and BK respectively.
 template <const int BM, const int BN, const int BK, const int TM>
 __global__ void __launch_bounds__((BM / TM) * BN)
 blocktiling_1d(const float* __restrict__ a, const float* __restrict__ b,

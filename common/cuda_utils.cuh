@@ -9,9 +9,6 @@
 #include <random>
 #include <vector>
 
-// ---------------------------------------------------------------------------
-// Error handling
-// ---------------------------------------------------------------------------
 
 #define CUDA_CHECK(call)                                                     \
     do {                                                                     \
@@ -25,9 +22,6 @@
 
 #define CUDA_CHECK_LAST() CUDA_CHECK(cudaGetLastError())
 
-// ---------------------------------------------------------------------------
-// Small helpers shared by the standalone kernel benchmarks
-// ---------------------------------------------------------------------------
 
 inline int ceil_div(int a, int b) { return (a + b - 1) / b; }
 
@@ -72,8 +66,6 @@ float benchmark_ms(LaunchFn&& launch, int warmup = 5, int iters = 20) {
     return total_ms / static_cast<float>(iters);
 }
 
-// Check a random sample of C against a CPU reference.  The full CPU reference
-// is intentionally avoided so the benchmark can use a large M/N/K.
 inline int verify_gemm_sample(const std::vector<float>& a,
                               const std::vector<float>& b,
                               const std::vector<float>& c, int M, int N,

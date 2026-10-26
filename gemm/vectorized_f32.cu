@@ -5,8 +5,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// Vectorized naive GEMM: each thread computes four consecutive columns.
-// Assumes N is a multiple of 4.
 __global__ void vectorized_gemm(const float* __restrict__ a,
                                 const float* __restrict__ b,
                                 float* __restrict__ c, int M, int N, int K) {

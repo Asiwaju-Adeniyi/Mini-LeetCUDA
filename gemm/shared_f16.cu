@@ -6,8 +6,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// Shared-memory tiled fp16 GEMM with fp32 accumulation.
-// Assumes M, N and K are multiples of BLOCKSIZE.
 template <const int BLOCKSIZE>
 __global__ void __launch_bounds__(BLOCKSIZE * BLOCKSIZE)
 hSharedGemm(const __half* __restrict__ a, const __half* __restrict__ b,

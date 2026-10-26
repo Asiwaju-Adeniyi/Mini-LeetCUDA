@@ -1,96 +1,114 @@
-#include <cuda_fp16.h>
+#include <algorithm> 
+#include <float.h>
 #include <cuda_runtime.h>
-
-#include <cmath>
-#include <cstdio>
+#include <stdio.h>
+#include <stdlib.h> 
 #include <vector>
+#include <cuda_bf16.h>
+#include <cuda_fp16.h>
+#include <cuda_fp8.h>
+#include <iostream>
 
-#include "../common/cuda_utils.cuh"
+#define HALF2(value) (reinterpret_cast<half2 *> (&value)[0])
 
-// fp16 elementwise add, eight halves per thread using four half2 operations.
-__global__ void elemwise_f16x8(const __half* __restrict__ a,
-                               const __half* __restrict__ b,
-                               __half* __restrict__ c, int N) {
-    const int idx = 8 * (blockIdx.x * blockDim.x + threadIdx.x);
-    if (idx >= N) {
-        return;
-    }
+__global__ void elemwise_fp16x8(half *a, half *b, half *c, int N) {
+    int idx = 8 * (threadIdx.x + blockIdx.x * blockDim.x);
 
-    if (idx + 8 <= N) {
-        const __half2 a0 = reinterpret_cast<const __half2*>(a + idx)[0];
-        const __half2 a1 = reinterpret_cast<const __half2*>(a + idx)[1];
-        const __half2 a2 = reinterpret_cast<const __half2*>(a + idx)[2];
-        const __half2 a3 = reinterpret_cast<const __half2*>(a + idx)[3];
+    half2 reg_a0 = HALF2(a[idx]);
+    half2 reg_a1 = HALF2(a[idx + 2]);
+    half2 reg_a2 = HALF2(a[idx + 4]);
+    half2 reg_a3 = HALF2(a[idx + 6]);
 
-        const __half2 b0 = reinterpret_cast<const __half2*>(b + idx)[0];
-        const __half2 b1 = reinterpret_cast<const __half2*>(b + idx)[1];
-        const __half2 b2 = reinterpret_cast<const __half2*>(b + idx)[2];
-        const __half2 b3 = reinterpret_cast<const __half2*>(b + idx)[3];
+    half2 reg_b0 = HALF2(b[idx]);
+    half2 reg_b1 = HALF2(b[idx + 2]);
+    half2 reg_b2 = HALF2(b[idx + 4]);
+    half2 reg_b3 = HALF2(b[idx + 6]);
 
-        reinterpret_cast<__half2*>(c + idx)[0] = __hadd2(a0, b0);
-        reinterpret_cast<__half2*>(c + idx)[1] = __hadd2(a1, b1);
-        reinterpret_cast<__half2*>(c + idx)[2] = __hadd2(a2, b2);
-        reinterpret_cast<__half2*>(c + idx)[3] = __hadd2(a3, b3);
-    } else {
-        for (int i = 0; idx + i < N; ++i) {
-            c[idx + i] = __hadd(a[idx + i], b[idx + i]);
-        }
-    }
-}
+    half2 reg_c0, reg_c1, reg_c2, reg_c3;
+
+    reg_c0.x = __hadd(reg_a0.x, reg_b0.x);
+    reg_c0.y = __hadd(reg_a0.y, reg_b0.y);
+    reg_c1.x = __hadd(reg_a1.x, reg_b1.x);
+    reg_c1.y = __hadd(reg_a1.y, reg_b1.y);
+    reg_c2.x = __hadd(reg_a2.x, reg_b2.x);
+    reg_c2.y = __hadd(reg_a2.y, reg_b2.y);
+    reg_c3.x = __hadd(reg_a3.x, reg_b3.x);
+    reg_c3.y = __hadd(reg_a3.y, reg_b3.y);
+
+    
+   if (idx < N) {
+    HALF2 (c[idx]) = reg_c0;
+   }
+
+   if ((idx + 2) < N) {
+    HALF2 (c[idx + 2]) = reg_c1;
+   }
+
+   if ((idx + 4) < N) {
+    HALF2 (c[idx + 4]) = reg_c2;
+   }
+
+   if ((idx + 6) < N) {
+    HALF2 (c[idx + 6]) = reg_c3;
+   }
+
+};
 
 int main() {
-    constexpr int N = 1 << 20;
-    constexpr int threads = 256;
+    int N = 256 * 256;
 
-    std::vector<float> h_a_f32(N);
-    std::vector<float> h_b_f32(N);
-    fill_random(h_a_f32);
-    fill_random(h_b_f32);
+    std::vector<half> h_a(N);
+    std::vector<half> h_b(N);
+    std::vector<half> h_c(N);
 
-    std::vector<__half> h_a(N);
-    std::vector<__half> h_b(N);
-    std::vector<__half> h_c(N);
-    for (int i = 0; i < N; ++i) {
-        h_a[i] = __float2half(h_a_f32[i]);
-        h_b[i] = __float2half(h_b_f32[i]);
+    for (int i = 0; i < N; i++) {
+        float val_a = (float)rand() / RAND_MAX;
+        float val_b = (float)rand() / RAND_MAX;
+
+        h_a[i] = __float2half(val_a);
+        h_b[i] = __float2half(val_b);
+
     }
 
-    __half* d_a = nullptr;
-    __half* d_b = nullptr;
-    __half* d_c = nullptr;
-    CUDA_CHECK(cudaMalloc(&d_a, h_a.size() * sizeof(__half)));
-    CUDA_CHECK(cudaMalloc(&d_b, h_b.size() * sizeof(__half)));
-    CUDA_CHECK(cudaMalloc(&d_c, h_c.size() * sizeof(__half)));
+    half *d_a = nullptr;
+    half *d_b = nullptr;
+    half *d_c = nullptr;
 
-    CUDA_CHECK(cudaMemcpy(d_a, h_a.data(), h_a.size() * sizeof(__half),
-                          cudaMemcpyHostToDevice));
-    CUDA_CHECK(cudaMemcpy(d_b, h_b.data(), h_b.size() * sizeof(__half),
-                          cudaMemcpyHostToDevice));
+    size_t size = N * sizeof(half);
 
-    const int blocks = ceil_div(N, 8 * threads);
+    int tpB = 256/8;
+    int bpG = (N + 256 - 1) / 256;
 
-    elemwise_f16x8<<<blocks, threads>>>(d_a, d_b, d_c, N);
-    CUDA_CHECK_LAST();
-    CUDA_CHECK(cudaDeviceSynchronize());
-    CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, h_c.size() * sizeof(__half),
-                          cudaMemcpyDeviceToHost));
+    cudaMalloc(&d_a, size);
+    cudaMalloc(&d_b, size);
+    cudaMalloc(&d_c, size);
 
-    int bad = 0;
-    for (int i = 0; i < N; ++i) {
-        const float ref = __half2float(h_a[i]) + __half2float(h_b[i]);
-        if (std::fabs(__half2float(h_c[i]) - ref) > 5e-3f) {
-            ++bad;
-        }
-    }
-    std::printf("elemwise_f16x8 mismatches: %d/%d\n", bad, N);
+    cudaMemcpy(d_a, h_a.data(), size, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_b, h_b.data(), size, cudaMemcpyHostToDevice);
 
-    const float ms = benchmark_ms([&]() {
-        elemwise_f16x8<<<blocks, threads>>>(d_a, d_b, d_c, N);
-    });
-    std::printf("elemwise_f16x8: %.3f ms\n", ms);
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
 
-    CUDA_CHECK(cudaFree(d_a));
-    CUDA_CHECK(cudaFree(d_b));
-    CUDA_CHECK(cudaFree(d_c));
-    return 0;
+    cudaEventRecord(start);
+    elemwise_fp16x8<<<bpG, tpB>>>(d_a, d_b, d_c, N);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
+
+    float gpuDuration = 0.0f;
+    cudaEventElapsedTime(&gpuDuration, start, stop);
+
+    std::cout << gpuDuration << " ms" << std::endl;
+
+        cudaMemcpy(h_c.data(), d_c, size, cudaMemcpyDeviceToHost);
+
+
+
+   cudaFree(d_a);
+   cudaFree(d_b);
+   cudaFree(d_c);
+
+   return 0;
+
+
 }

@@ -5,8 +5,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// Shared-memory tiled GEMM (one output element per thread).
-// Assumes M, N and K are multiples of BLOCKSIZE.
 template <const int BLOCKSIZE>
 __global__ void __launch_bounds__(BLOCKSIZE * BLOCKSIZE)
 shared_sgemm(const float* __restrict__ a, const float* __restrict__ b,

@@ -6,8 +6,6 @@
 
 #include "../common/cuda_utils.cuh"
 
-// Naive fp16 GEMM with fp32 accumulation.
-// C[M,N] = A[M,K] * B[K,N], all matrices row-major.
 __global__ void hGemm(const __half* __restrict__ a,
                       const __half* __restrict__ b, __half* __restrict__ c,
                       int M, int N, int K) {
