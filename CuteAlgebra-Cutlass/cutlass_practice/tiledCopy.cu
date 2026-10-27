@@ -20,6 +20,14 @@ __global__ void tiledCopyG2S(float *x) {
     Layout tLayout = make_layout(make_shape(Int<2>{}, Int<2>{}), make_stride(Int<2>{}, Int<1>{}));
     Layout vLayout = make_layout(make_shape(Int<1>{}, Int<2>{}));
 
-    auto tCopy = make_tiled_copy(cAtom, tLayout, vLayout);
+    auto tCopy = make_tiled_copy(cAtom{}, tLayout, vLayout);
+
+    auto slice = tCopy.get_slice(threadIdx.x);
+    auto gPart = slice.partition_S(gTensor);
+    auto sPart = slice.partition_D(sTensor);
+
+    copy(tCopy, gPart, sPart);
+
+    __syncthreads();
     
 }
