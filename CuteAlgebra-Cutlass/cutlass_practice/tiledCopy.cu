@@ -4,7 +4,9 @@
 #include <thrust/device_vector.h>
 #include <cute/tensor.hpp>
 
-template <tM, tN> 
+template <int tM, int tN> 
+
+using namespace cute;
 
 __global__ void tiledCopyG2S(float *x) {
     __shared__ float sC[tM * tN];

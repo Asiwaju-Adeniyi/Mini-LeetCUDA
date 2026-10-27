@@ -1,9 +1,11 @@
 # GEMM: from naive CuTe to cuBLAS
 
-### NOTE: All Kernels Are Handwritten For Learning Purposes. Claude Helped With Benchmark Codes. 
+### NOTE: All Kernels Are Handwritten For Learning Purposes. Claude/DeepSeek Helped With Benchmark Codes. 
 
 
 These are Fp16 tensor-core GEMM written with CUTLASS/CuTe on a Tesla T4 (sm_75) just because I am GPU-poor. Each kernel version is benchmarked against cuBLAS, so every optimization is measured against a fixed reference.
+
+Update: Now, I'm GPU-rich. I didn't know I had an unused FlashInfer Modal credits from February. But thanks to [Bikram Mahji](https://github.com/bikrammajhi). Will be profiling my kernels with Hopper/Blackwell. 
 
 ## Results
 
