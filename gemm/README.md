@@ -85,6 +85,18 @@ cuBLAS rows are the reference):
 | 2048 | 1298 | 1951 | 5355 | **10841** | 83894 |
 | 4096 | 1238 | 1880 | 5153 | **10549** | 59370 |
 
+### Figures
+
+Regenerate anytime with `.venv/bin/python gemm/figures/make_figures.py
+[path/to/bench_all.csv]` (matplotlib inside the repo venv; the script defaults
+to the Oct 27 2026 sweep).
+
+![GFLOP/s vs size, fp32 ladder vs cuBLAS SGEMM](figures/f32_gflops_vs_size.png)
+
+![GFLOP/s vs size, fp16 storage vs cuBLAS HGEMM](figures/f16_gflops_vs_size.png)
+
+![Best hand-written kernel as % of cuBLAS](figures/blocktiling_2d_vs_cublas.png)
+
 Jump straight to the headline: **the 2D-blocktiling f32 kernel reaches ~72% of
 cuBLAS SGEMM at 2048³ and ~88% at 4096³** — without tensor cores, without
 async copies, just tiling + register blocking + vectorized loads. The fp16
