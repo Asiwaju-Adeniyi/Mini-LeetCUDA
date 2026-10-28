@@ -1,0 +1,7 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 781 (/tmp/minileetcuda_build/shared_f16)
+==PROF== Profiling "hSharedGemm": 0%....50%....100% - 37 passes
+hSharedGemm mismatches: 0
+hSharedGemm: 60.769 ms, 35.34 GFLOP/s
+==PROF== Disconnected from process 781
+==PROF== Report: /tmp/shared_f16_1024_20261027T065505Z.ncu-rep

@@ -1,0 +1,11 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 130 (/tmp/minileetcuda_build/naive_f32)
+==PROF== Profiling "sgemm_naive": 0%
+==WARNING== Launching the workload is taking more time than expected. If this continues to hang, terminate the profile and re-try by profiling the range of all related launches using '--replay-mode range'. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#replay for more details.
+....50%....100% - 38 passes
+matmul_float32 mismatches: 0
+matmul_float32: 107.638 ms, 1276.86 GFLOP/s
+sgemm_naive mismatches: 0
+sgemm_naive: 1451.373 ms, 94.70 GFLOP/s
+==PROF== Disconnected from process 130
+==PROF== Report: /tmp/naive_f32_4096_20261027T065012Z.ncu-rep

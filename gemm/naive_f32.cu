@@ -33,10 +33,9 @@ __global__ void sgemm_naive(const float* __restrict__ a,
     naive_gemm_impl(a, b, c, M, N, K);
 }
 
-int main() {
-    constexpr int M = 1024;
-    constexpr int N = 1024;
-    constexpr int K = 1024;
+int main(int argc, char** argv) {
+    int M, N, K;
+    parse_gemm_dims(argc, argv, M, N, K);
 
     std::vector<float> h_a(M * K);
     std::vector<float> h_b(K * N);

@@ -1,0 +1,7 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 668 (/tmp/minileetcuda_build/shared_f32)
+==PROF== Profiling "shared_sgemm": 0%....50%....100% - 37 passes
+shared_sgemm mismatches: 0
+shared_sgemm: 62.375 ms, 34.43 GFLOP/s
+==PROF== Disconnected from process 668
+==PROF== Report: /tmp/shared_f32_1024_20261027T065505Z.ncu-rep

@@ -38,8 +38,45 @@ inline void fill_random(std::vector<float>& v, float lo = -1.0f,
     }
 }
 
+// Parse optional GEMM dimensions from the command line.
+//
+//   ./kernel              -> 1024 x 1024 x 1024
+//   ./kernel 4096         -> 4096 x 4096 x 4096
+//   ./kernel 4096 2048 512 -> M=4096, N=2048, K=512
+inline void parse_gemm_dims(int argc, char** argv, int& M, int& N, int& K,
+                            int default_size = 1024) {
+    M = N = K = default_size;
+    if (argc == 1) {
+        return;
+    }
+    if (argc == 2) {
+        M = N = K = std::atoi(argv[1]);
+    } else if (argc == 4) {
+        M = std::atoi(argv[1]);
+        N = std::atoi(argv[2]);
+        K = std::atoi(argv[3]);
+    } else {
+        std::fprintf(stderr, "usage: %s [size | M N K]\n", argv[0]);
+        std::exit(EXIT_FAILURE);
+    }
+    if (M <= 0 || N <= 0 || K <= 0) {
+        std::fprintf(stderr, "M, N, K must be positive (got %d, %d, %d)\n", M,
+                     N, K);
+        std::exit(EXIT_FAILURE);
+    }
+}
+
+inline void require_divisible(int M, int N, int K, int bm, int bn, int bk) {
+    if (M % bm != 0 || N % bn != 0 || K % bk != 0) {
+        std::fprintf(stderr,
+                     "M, N, K must be multiples of %d, %d, %d (got %d, %d, %d)\n",
+                     bm, bn, bk, M, N, K);
+        std::exit(EXIT_FAILURE);
+    }
+}
+
 template <typename LaunchFn>
-float benchmark_ms(LaunchFn&& launch, int warmup = 5, int iters = 20) {
+float benchmark_ms(LaunchFn&& launch, int warmup = 5, int iters = 50) {
     for (int i = 0; i < warmup; ++i) {
         launch();
     }

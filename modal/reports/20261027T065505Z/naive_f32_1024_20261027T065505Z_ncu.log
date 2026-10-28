@@ -1,0 +1,9 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 442 (/tmp/minileetcuda_build/naive_f32)
+==PROF== Profiling "sgemm_naive": 0%....50%....100% - 37 passes
+matmul_float32 mismatches: 0
+matmul_float32: 1.229 ms, 1746.70 GFLOP/s
+sgemm_naive mismatches: 0
+sgemm_naive: 75.609 ms, 28.40 GFLOP/s
+==PROF== Disconnected from process 442
+==PROF== Report: /tmp/naive_f32_1024_20261027T065505Z.ncu-rep

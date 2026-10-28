@@ -1,0 +1,7 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 555 (/tmp/minileetcuda_build/naive_f16)
+==PROF== Profiling "hGemm": 0%....50%....100% - 37 passes
+hGemm mismatches: 0
+hGemm: 73.099 ms, 29.38 GFLOP/s
+==PROF== Disconnected from process 555
+==PROF== Report: /tmp/naive_f16_1024_20261027T065505Z.ncu-rep

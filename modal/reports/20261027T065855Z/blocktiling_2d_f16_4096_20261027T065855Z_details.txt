@@ -1,0 +1,222 @@
+[1247] blocktiling_2d_f16@127.0.0.1
+  void blocktiling_2d_f16<(int)128, (int)128, (int)16, (int)8, (int)8>(const __half *, const __half *, __half *, int, int, int) (32, 32, 1)x(256, 1, 1), Context 1, Stream 7, Device 0, CC 8.6
+    Warning: Data collection happened without fixed GPU frequencies. Profiling results may be inconsistent.
+    Section: GPU Speed Of Light Throughput
+    ----------------------- ------------- ------------
+    Metric Name               Metric Unit Metric Value
+    ----------------------- ------------- ------------
+    DRAM Frequency          cycle/nsecond         6.24
+    SM Frequency            cycle/nsecond         1.49
+    Elapsed Cycles                  cycle     16069270
+    Memory Throughput                   %        42.37
+    DRAM Throughput                     %        11.29
+    Duration                      msecond        10.79
+    L1/TEX Cache Throughput             %        44.70
+    L2 Cache Throughput                 %         8.98
+    SM Active Cycles                cycle  15237853.07
+    Compute (SM) Throughput             %        68.40
+    ----------------------- ------------- ------------
+
+    OPT   Compute is more heavily utilized than Memory: Look at the Compute Workload Analysis section to see what the   
+          compute pipelines are spending their time doing. Also, consider whether any computation is redundant and      
+          could be reduced or moved to look-up tables.                                                                  
+
+    Section: GPU Speed Of Light Roofline Chart
+    INF   The ratio of peak float (fp32) to double (fp64) performance on this device is 64:1. The kernel achieved 46%   
+          of this device's fp32 peak performance and 0% of its fp64 peak performance. See the Kernel Profiling Guide    
+          (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#roofline) for more details on roofline      
+          analysis.                                                                                                     
+
+    Section: PM Sampling
+    ------------------------- ----------- ------------
+    Metric Name               Metric Unit Metric Value
+    ------------------------- ----------- ------------
+    Maximum Buffer Size             Mbyte         3.47
+    Dropped Samples                sample            0
+    Maximum Sampling Interval     msecond         1.02
+    # Pass Groups                                    2
+    ------------------------- ----------- ------------
+
+    Section: Compute Workload Analysis
+    -------------------- ----------- ------------
+    Metric Name          Metric Unit Metric Value
+    -------------------- ----------- ------------
+    Executed Ipc Active   inst/cycle         2.89
+    Executed Ipc Elapsed  inst/cycle         2.74
+    Issue Slots Busy               %        72.16
+    Issued Ipc Active     inst/cycle         2.89
+    SM Busy                        %        72.16
+    -------------------- ----------- ------------
+
+    OPT   FMA is the highest-utilized pipeline (63.6%) based on active cycles, taking into account the rates of its     
+          different instructions. It executes 32-bit floating point (FADD, FMUL, FMAD, ...) and integer (IMUL, IMAD)    
+          operations. The pipeline is well-utilized, but might become a bottleneck if more work is added. Based on the  
+          number of executed instructions, the highest utilized pipeline (62.7%) is FMA. It executes 32-bit floating    
+          point (FADD, FMUL, FMAD, ...) and integer (IMUL, IMAD) operations. Comparing the two, the overall pipeline    
+          utilization appears to be caused by frequent, low-latency instructions. See the Kernel Profiling Guide        
+          (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-decoder) or hover over the          
+          pipeline name to understand the workloads handled by each pipeline. The Instruction Statistics section shows  
+          the mix of executed instructions in this kernel. Check the Warp State Statistics section for which reasons    
+          cause warps to stall.                                                                                         
+
+    Section: Memory Workload Analysis
+    --------------------------- ------------ ------------
+    Metric Name                  Metric Unit Metric Value
+    --------------------------- ------------ ------------
+    Memory Throughput           Gbyte/second        67.70
+    Mem Busy                               %        42.37
+    Max Bandwidth                          %        34.88
+    L1/TEX Hit Rate                        %         7.63
+    L2 Compression Success Rate            %            0
+    L2 Compression Ratio                                0
+    L2 Hit Rate                            %        78.80
+    Mem Pipes Busy                         %        34.88
+    --------------------------- ------------ ------------
+
+    Section: Memory Workload Analysis Tables
+    OPT   Est. Speedup: 37.08%                                                                                          
+          The memory access pattern for global stores to L1TEX might not be optimal. On average, only 4.0 of the 32     
+          bytes transmitted per sector are utilized by each thread. This could possibly be caused by a stride between   
+          threads. Check the Source Counters section for uncoalesced global stores.                                     
+    ----- --------------------------------------------------------------------------------------------------------------
+    OPT   Est. Speedup: 22.35%                                                                                          
+          The memory access pattern for shared loads might not be optimal and causes on average a 3.0 - way bank        
+          conflict across all 134217728 shared load requests.This results in 201326592 bank conflicts,  which           
+          represent 50.00% of the overall 402653414 wavefronts for shared loads. Check the Source Counters section for  
+          uncoalesced shared loads.                                                                                     
+
+    Section: Scheduler Statistics
+    ---------------------------- ----------- ------------
+    Metric Name                  Metric Unit Metric Value
+    ---------------------------- ----------- ------------
+    One or More Eligible                   %        72.12
+    Issued Warp Per Scheduler                        0.72
+    No Eligible                            %        27.88
+    Active Warps Per Scheduler          warp         3.89
+    Eligible Warps Per Scheduler        warp         1.93
+    ---------------------------- ----------- ------------
+
+    Section: Warp State Statistics
+    ---------------------------------------- ----------- ------------
+    Metric Name                              Metric Unit Metric Value
+    ---------------------------------------- ----------- ------------
+    Warp Cycles Per Issued Instruction             cycle         5.39
+    Warp Cycles Per Executed Instruction           cycle         5.39
+    Avg. Active Threads Per Warp                                   32
+    Avg. Not Predicated Off Threads Per Warp                    31.85
+    ---------------------------------------- ----------- ------------
+
+    OPT   Est. Local Speedup: 31.01%                                                                                    
+          On average, each warp of this kernel spends 1.7 cycles being stalled waiting for the micro scheduler to       
+          select the warp to issue. Not selected warps are eligible warps that were not picked by the scheduler to      
+          issue that cycle as another warp was selected. A high number of not selected warps typically means you have   
+          sufficient warps to cover warp latencies and you may consider reducing the number of active warps to          
+          possibly increase cache coherence and data locality. This stall type represents about 31.0% of the total      
+          average of 5.4 cycles between issuing two instructions.                                                       
+    ----- --------------------------------------------------------------------------------------------------------------
+    INF   Check the Warp Stall Sampling (All Samples) table for the top stall locations in your source based on         
+          sampling data. The Kernel Profiling Guide                                                                     
+          (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-reference) provides more details    
+          on each stall reason.                                                                                         
+
+    Section: Instruction Statistics
+    ---------------------------------------- ----------- ------------
+    Metric Name                              Metric Unit Metric Value
+    ---------------------------------------- ----------- ------------
+    Avg. Executed Instructions Per Scheduler        inst     10995712
+    Executed Instructions                           inst   3166765056
+    Avg. Issued Instructions Per Scheduler          inst  10995784.72
+    Issued Instructions                             inst   3166785998
+    ---------------------------------------- ----------- ------------
+
+    Section: Launch Statistics
+    -------------------------------- --------------- ---------------
+    Metric Name                          Metric Unit    Metric Value
+    -------------------------------- --------------- ---------------
+    Block Size                                                   256
+    Function Cache Configuration                     CachePreferNone
+    Grid Size                                                   1024
+    Registers Per Thread             register/thread             128
+    Shared Memory Configuration Size           Kbyte           65.54
+    Driver Shared Memory Per Block       Kbyte/block            1.02
+    Dynamic Shared Memory Per Block       byte/block               0
+    Static Shared Memory Per Block       Kbyte/block            8.19
+    # SMs                                         SM              72
+    Threads                                   thread          262144
+    Uses Green Context                                             0
+    Waves Per SM                                                7.11
+    -------------------------------- --------------- ---------------
+
+    Section: Occupancy
+    ------------------------------- ----------- ------------
+    Metric Name                     Metric Unit Metric Value
+    ------------------------------- ----------- ------------
+    Block Limit SM                        block           16
+    Block Limit Registers                 block            2
+    Block Limit Shared Mem                block            7
+    Block Limit Warps                     block            6
+    Theoretical Active Warps per SM        warp           16
+    Theoretical Occupancy                     %        33.33
+    Achieved Occupancy                        %        32.37
+    Achieved Active Warps Per SM           warp        15.54
+    ------------------------------- ----------- ------------
+
+    OPT   Est. Local Speedup: 66.67%                                                                                    
+          The 4.00 theoretical warps per scheduler this kernel can issue according to its occupancy are below the       
+          hardware maximum of 12. This kernel's theoretical occupancy (33.3%) is limited by the number of required      
+          registers.                                                                                                    
+
+    Section: GPU and Memory Workload Distribution
+    -------------------------- ----------- ------------
+    Metric Name                Metric Unit Metric Value
+    -------------------------- ----------- ------------
+    Average DRAM Active Cycles       cycle   7605929.33
+    Total DRAM Elapsed Cycles        cycle    808280064
+    Average L1 Active Cycles         cycle  15237853.07
+    Total L1 Elapsed Cycles          cycle   1157426808
+    Average L2 Active Cycles         cycle  12461103.75
+    Total L2 Elapsed Cycles          cycle    830017872
+    Average SM Active Cycles         cycle  15237853.07
+    Total SM Elapsed Cycles          cycle   1157426808
+    Average SMSP Active Cycles       cycle  15247121.53
+    Total SMSP Elapsed Cycles        cycle   4629707232
+    -------------------------- ----------- ------------
+
+    OPT   Est. Speedup: 5.072%                                                                                          
+          One or more SMs have a much higher number of active cycles than the average number of active cycles. Maximum  
+          instance value is 5.35% above the average, while the minimum instance value is 1.89% below the average.       
+    ----- --------------------------------------------------------------------------------------------------------------
+    OPT   Est. Speedup: 5.032%                                                                                          
+          One or more SMSPs have a much higher number of active cycles than the average number of active cycles.        
+          Maximum instance value is 5.31% above the average, while the minimum instance value is 1.89% below the        
+          average.                                                                                                      
+    ----- --------------------------------------------------------------------------------------------------------------
+    OPT   Est. Speedup: 5.072%                                                                                          
+          One or more L1 Slices have a much higher number of active cycles than the average number of active cycles.    
+          Maximum instance value is 5.35% above the average, while the minimum instance value is 1.89% below the        
+          average.                                                                                                      
+
+    Section: Source Counters
+    ------------------------- ----------- ------------
+    Metric Name               Metric Unit Metric Value
+    ------------------------- ----------- ------------
+    Branch Instructions Ratio           %         0.01
+    Branch Instructions              inst     29368320
+    Branch Efficiency                   %          100
+    Avg. Divergent Branches                          0
+    ------------------------- ----------- ------------
+
+    OPT   Est. Speedup: 7.006%                                                                                          
+          This kernel has uncoalesced global accesses resulting in a total of 7340032 excessive sectors (10% of the     
+          total 75497472 sectors). Check the L2 Theoretical Sectors Global Excessive table for the primary source       
+          locations. The CUDA Programming Guide                                                                         
+          (https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#device-memory-accesses) has additional      
+          information on reducing uncoalesced device memory accesses.                                                   
+    ----- --------------------------------------------------------------------------------------------------------------
+    OPT   Est. Speedup: 29.17%                                                                                          
+          This kernel has uncoalesced shared accesses resulting in a total of 134217728 excessive wavefronts (31% of    
+          the total 436207616 wavefronts). Check the L1 Wavefronts Shared Excessive table for the primary source        
+          locations. The CUDA Best Practices Guide                                                                      
+           (https://docs.nvidia.com/cuda/cuda-c-best-practices-guide/index.html#shared-memory-in-matrix-multiplication-c
+          -ab) has an example on optimizing shared memory accesses.                                                     
+

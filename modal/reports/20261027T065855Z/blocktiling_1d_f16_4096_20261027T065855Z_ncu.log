@@ -1,0 +1,9 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 1017 (/tmp/minileetcuda_build/blocktiling_1d_f16)
+==PROF== Profiling "blocktiling_1d_f16": 0%
+==WARNING== Launching the workload is taking more time than expected. If this continues to hang, terminate the profile and re-try by profiling the range of all related launches using '--replay-mode range'. See https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#replay for more details.
+....50%....100% - 38 passes
+blocktiling_1d_f16 mismatches: 0
+blocktiling_1d_f16: 270.115 ms, 508.82 GFLOP/s
+==PROF== Disconnected from process 1017
+==PROF== Report: /tmp/blocktiling_1d_f16_4096_20261027T065855Z.ncu-rep

@@ -22,10 +22,9 @@ __global__ void hGemm(const __half* __restrict__ a,
     }
 }
 
-int main() {
-    constexpr int M = 1024;
-    constexpr int N = 1024;
-    constexpr int K = 1024;
+int main(int argc, char** argv) {
+    int M, N, K;
+    parse_gemm_dims(argc, argv, M, N, K);
 
     std::vector<float> h_a_f32(M * K);
     std::vector<float> h_b_f32(K * N);

@@ -93,19 +93,15 @@ blocktiling_2d(const float* __restrict__ a, const float* __restrict__ b,
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
     constexpr int BM = 128;
     constexpr int BN = 128;
     constexpr int BK = 16;
     constexpr int TM = 8;
     constexpr int TN = 8;
-    constexpr int M = 1024;
-    constexpr int N = 1024;
-    constexpr int K = 1024;
-
-    static_assert(M % BM == 0, "M must be a multiple of BM");
-    static_assert(N % BN == 0, "N must be a multiple of BN");
-    static_assert(K % BK == 0, "K must be a multiple of BK");
+    int M, N, K;
+    parse_gemm_dims(argc, argv, M, N, K);
+    require_divisible(M, N, K, BM, BN, BK);
 
     std::vector<float> h_a(M * K);
     std::vector<float> h_b(K * N);

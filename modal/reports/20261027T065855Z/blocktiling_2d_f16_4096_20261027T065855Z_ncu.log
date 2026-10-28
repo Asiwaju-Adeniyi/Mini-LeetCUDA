@@ -1,0 +1,7 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 1247 (/tmp/minileetcuda_build/blocktiling_2d_f16)
+==PROF== Profiling "blocktiling_2d_f16": 0%....50%....100% - 38 passes
+blocktiling_2d_f16 mismatches: 0
+blocktiling_2d_f16: 104.680 ms, 1312.95 GFLOP/s
+==PROF== Disconnected from process 1247
+==PROF== Report: /tmp/blocktiling_2d_f16_4096_20261027T065855Z.ncu-rep

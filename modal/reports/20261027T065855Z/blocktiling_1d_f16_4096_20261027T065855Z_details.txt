@@ -1,0 +1,157 @@
+[1017] blocktiling_1d_f16@127.0.0.1
+  void blocktiling_1d_f16<(int)64, (int)64, (int)16, (int)8>(const __half *, const __half *, __half *, int, int, int) (64, 64, 1)x(512, 1, 1), Context 1, Stream 7, Device 0, CC 8.6
+    Warning: Data collection happened without fixed GPU frequencies. Profiling results may be inconsistent.
+    Section: GPU Speed Of Light Throughput
+    ----------------------- ------------- ------------
+    Metric Name               Metric Unit Metric Value
+    ----------------------- ------------- ------------
+    DRAM Frequency          cycle/nsecond         6.24
+    SM Frequency            cycle/nsecond         1.48
+    Elapsed Cycles                  cycle     32148976
+    Memory Throughput                   %        88.59
+    DRAM Throughput                     %        20.08
+    Duration                      msecond        21.68
+    L1/TEX Cache Throughput             %        89.01
+    L2 Cache Throughput                 %         8.08
+    SM Active Cycles                cycle  31955910.68
+    Compute (SM) Throughput             %        88.59
+    ----------------------- ------------- ------------
+
+    INF   The kernel is utilizing greater than 80.0% of the available compute or memory performance of the device. To   
+          further improve performance, work will likely need to be shifted from the most utilized to another unit.      
+          Start by analyzing workloads in the Compute Workload Analysis section.                                        
+
+    Section: GPU Speed Of Light Roofline Chart
+    INF   The ratio of peak float (fp32) to double (fp64) performance on this device is 64:1. The kernel achieved 23%   
+          of this device's fp32 peak performance and 0% of its fp64 peak performance. See the Kernel Profiling Guide    
+          (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#roofline) for more details on roofline      
+          analysis.                                                                                                     
+
+    Section: PM Sampling
+    ------------------------- ----------- ------------
+    Metric Name               Metric Unit Metric Value
+    ------------------------- ----------- ------------
+    Maximum Buffer Size             Mbyte         3.60
+    Dropped Samples                sample            0
+    Maximum Sampling Interval     msecond         8.19
+    # Pass Groups                                    2
+    ------------------------- ----------- ------------
+
+    Section: Compute Workload Analysis
+    -------------------- ----------- ------------
+    Metric Name          Metric Unit Metric Value
+    -------------------- ----------- ------------
+    Executed Ipc Active   inst/cycle         2.86
+    Executed Ipc Elapsed  inst/cycle         2.85
+    Issue Slots Busy               %        71.54
+    Issued Ipc Active     inst/cycle         2.86
+    SM Busy                        %        71.54
+    -------------------- ----------- ------------
+
+    INF   FMA is the highest-utilized pipeline (54.7%) based on active cycles, taking into account the rates of its     
+          different instructions. It executes 32-bit floating point (FADD, FMUL, FMAD, ...) and integer (IMUL, IMAD)    
+          operations. It is well-utilized, but should not be a bottleneck.                                              
+
+    Section: Memory Workload Analysis
+    --------------------------- ------------ ------------
+    Metric Name                  Metric Unit Metric Value
+    --------------------------- ------------ ------------
+    Memory Throughput           Gbyte/second       120.41
+    Mem Busy                               %        46.20
+    Max Bandwidth                          %        88.59
+    L1/TEX Hit Rate                        %         0.52
+    L2 Compression Success Rate            %            0
+    L2 Compression Ratio                                0
+    L2 Hit Rate                            %        55.37
+    Mem Pipes Busy                         %        88.59
+    --------------------------- ------------ ------------
+
+    Section: Scheduler Statistics
+    ---------------------------- ----------- ------------
+    Metric Name                  Metric Unit Metric Value
+    ---------------------------- ----------- ------------
+    One or More Eligible                   %        71.29
+    Issued Warp Per Scheduler                        0.71
+    No Eligible                            %        28.71
+    Active Warps Per Scheduler          warp        11.79
+    Eligible Warps Per Scheduler        warp         2.71
+    ---------------------------- ----------- ------------
+
+    Section: Warp State Statistics
+    ---------------------------------------- ----------- ------------
+    Metric Name                              Metric Unit Metric Value
+    ---------------------------------------- ----------- ------------
+    Warp Cycles Per Issued Instruction             cycle        16.54
+    Warp Cycles Per Executed Instruction           cycle        16.54
+    Avg. Active Threads Per Warp                                   32
+    Avg. Not Predicated Off Threads Per Warp                    30.53
+    ---------------------------------------- ----------- ------------
+
+    Section: Instruction Statistics
+    ---------------------------------------- ----------- ------------
+    Metric Name                              Metric Unit Metric Value
+    ---------------------------------------- ----------- ------------
+    Avg. Executed Instructions Per Scheduler        inst  22862279.11
+    Executed Instructions                           inst   6584336384
+    Avg. Issued Instructions Per Scheduler          inst  22862623.69
+    Issued Instructions                             inst   6584435623
+    ---------------------------------------- ----------- ------------
+
+    Section: Launch Statistics
+    -------------------------------- --------------- ---------------
+    Metric Name                          Metric Unit    Metric Value
+    -------------------------------- --------------- ---------------
+    Block Size                                                   512
+    Function Cache Configuration                     CachePreferNone
+    Grid Size                                                   4096
+    Registers Per Thread             register/thread              40
+    Shared Memory Configuration Size           Kbyte           16.38
+    Driver Shared Memory Per Block       Kbyte/block            1.02
+    Dynamic Shared Memory Per Block       byte/block               0
+    Static Shared Memory Per Block       Kbyte/block            4.10
+    # SMs                                         SM              72
+    Threads                                   thread         2097152
+    Uses Green Context                                             0
+    Waves Per SM                                               18.96
+    -------------------------------- --------------- ---------------
+
+    Section: Occupancy
+    ------------------------------- ----------- ------------
+    Metric Name                     Metric Unit Metric Value
+    ------------------------------- ----------- ------------
+    Block Limit SM                        block           16
+    Block Limit Registers                 block            3
+    Block Limit Shared Mem                block            3
+    Block Limit Warps                     block            3
+    Theoretical Active Warps per SM        warp           48
+    Theoretical Occupancy                     %          100
+    Achieved Occupancy                        %        98.32
+    Achieved Active Warps Per SM           warp        47.19
+    ------------------------------- ----------- ------------
+
+    Section: GPU and Memory Workload Distribution
+    -------------------------- ----------- ------------
+    Metric Name                Metric Unit Metric Value
+    -------------------------- ----------- ------------
+    Average DRAM Active Cycles       cycle  27193614.67
+    Total DRAM Elapsed Cycles        cycle   1624720384
+    Average L1 Active Cycles         cycle  31955910.68
+    Total L1 Elapsed Cycles          cycle   2311654836
+    Average L2 Active Cycles         cycle  28232367.50
+    Total L2 Elapsed Cycles          cycle   1668850080
+    Average SM Active Cycles         cycle  31955910.68
+    Total SM Elapsed Cycles          cycle   2311654836
+    Average SMSP Active Cycles       cycle  32067721.45
+    Total SMSP Elapsed Cycles        cycle   9246619344
+    -------------------------- ----------- ------------
+
+    Section: Source Counters
+    ------------------------- ----------- ------------
+    Metric Name               Metric Unit Metric Value
+    ------------------------- ----------- ------------
+    Branch Instructions Ratio           %         0.02
+    Branch Instructions              inst    134283264
+    Branch Efficiency                   %          100
+    Avg. Divergent Branches                          0
+    ------------------------- ----------- ------------
+

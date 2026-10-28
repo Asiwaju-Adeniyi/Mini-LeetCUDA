@@ -43,15 +43,11 @@ shared_sgemm(const float* __restrict__ a, const float* __restrict__ b,
     c[threadRow * N + threadCol] = accum;
 }
 
-int main() {
+int main(int argc, char** argv) {
     constexpr int BLOCKSIZE = 32;
-    constexpr int M = 1024;
-    constexpr int N = 1024;
-    constexpr int K = 1024;
-
-    static_assert(M % BLOCKSIZE == 0, "M must be a multiple of BLOCKSIZE");
-    static_assert(N % BLOCKSIZE == 0, "N must be a multiple of BLOCKSIZE");
-    static_assert(K % BLOCKSIZE == 0, "K must be a multiple of BLOCKSIZE");
+    int M, N, K;
+    parse_gemm_dims(argc, argv, M, N, K);
+    require_divisible(M, N, K, BLOCKSIZE, BLOCKSIZE, BLOCKSIZE);
 
     std::vector<float> h_a(M * K);
     std::vector<float> h_b(K * N);
