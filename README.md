@@ -80,22 +80,30 @@ Each kernel follows the same development pipeline:
 ## Compiling and profiling on Modal
 
 No local CUDA toolkit is required. `modal/run_cuda.py` copies this repository
-into a CUDA 12.4 image, compiles for the T4 (`sm_75`), and runs Nsight Compute.
-
-Compile, run, and profile one standalone kernel:
-
-```bash
-modal run modal/run_cuda.py \
-  --kernel gemm/naive_f32.cu \
-  --name sgemm_naive
-```
-
-`ncu` reports are saved to the `minileetcuda-reports` Modal volume. Inspect a
-report with:
+into a CUDA 12.4 image and runs against a preset GPU (`--gpu a10` → NVIDIA
+A10, `sm_86`; `--gpu a100` → A100 40GB, `sm_80`). It can compile by hand and
+profile single kernels, or drive the whole GEMM ladder with cuBLAS references:
 
 ```bash
-ncu --import <report>.ncu-rep --page details
+# Bundle everything: warmup, NCU profile, and full benchmark sweep in one
+# container, then download the reports and open them in the local Nsight GUI.
+modal run modal/run_cuda.py --suite all --mode all --size 4096 --gpu a10 --open-reports
+
+# Benchmark the entire GEMM ladder incl. cuBLAS across 128..4096 (3 reps).
+modal run modal/run_cuda.py --suite all --mode sweep --gpu a10
+
+# NCU-profile every GEMM kernel at one size only.
+modal run modal/run_cuda.py --suite all --mode ncu-sweep --size 1024 --gpu a10
 ```
+
+Flags: `--suite naive|cublas|all`, `--mode warmup|profile|both|sweep|
+ncu-sweep|all`, `--size 4096`, `--sizes 128,256,…` (sweep), `--reps 3`,
+`--ncu-set basic|detailed|full`, `--open-reports` (macOS Nsight Compute GUI).
+
+`ncu` reports, `_details.txt`/`_raw.csv` text exports, per-run metadata, and
+the rolling `bench_all.csv` all land in `modal/reports/<run_id>/` (downloaded
+from the `minileetcuda-reports` Modal volume). Benchmark results and NCU
+findings are discussed in [`gemm/README.md`](gemm/README.md).
 
 ---
 
@@ -114,7 +122,7 @@ Mini-LeetCUDA/
 ├── CudaForDLClassQuizzes/
 ├── CuteAlgebra-Cutlass/
 ├── trainingloop/
-└── modal/               # Remote T4 compile/profile runner
+└── modal/               # Remote compile/benchmark/NCU runner (A10/A100 presets)
 ```
 
 The GEMM files use a dtype suffix:
