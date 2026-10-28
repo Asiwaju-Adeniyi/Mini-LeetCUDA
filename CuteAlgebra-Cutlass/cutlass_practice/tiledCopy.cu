@@ -12,11 +12,10 @@ __global__ void tiledCopyG2S(float *x) {
     __shared__ float sC[tM * tN];
 
     Tensor gTensor = make_tensor(make_gmem_tensor(x), make_shape(Int<tM>{}, Int<tN>{}), make_stride(Int<tN>{}, Int<1>{}));
-
     Tensor sTensor = make_tensor(make_smem_tensor(sC), make_shape(Int<tM>{}, Int<tN>{}), make_stride(Int<tN>{}, Int<1>{}));
 
-    using gs2Copy = UniversalCopy<cute::uint64_t>;
-    using g2sCopyTraits = Copy_Traits<g2sCopy>;
+    using gs2CopyType = UniversalCopy<cute::uint64_t>;
+    using g2sCopyTraits = Copy_Traits<g2sCopyType>;
     using cAtom = Copy_Atom<g2sCopyTraits, float>;
     
     Layout tLayout = make_layout(make_shape(Int<2>{}, Int<2>{}), make_stride(Int<2>{}, Int<1>{}));
