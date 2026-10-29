@@ -63,8 +63,11 @@ GPU_CONFIGS = {
     "b200": {"gpu": "B200", "arch": "sm_100", "label": "NVIDIA B200"},
 }
 
+# Maps SM architecture -> the CUDA toolkit that must build it.  Modal builds
+# one image chain per *distinct tag*, not per architecture: sm_80/sm_86/sm_90
+# share the same 12.4 base, so a 1:1 mapping would rebuild identical apt
+# layers and triple the surface for transient registry/mirror flakes.
 CUDA_IMAGE_TAG = {
-    "sm_75": "12.4.0",
     "sm_80": "12.4.0",
     "sm_86": "12.4.0",
     "sm_90": "12.4.0",
@@ -72,8 +75,7 @@ CUDA_IMAGE_TAG = {
 }
 
 
-def make_cuda_image(arch: str) -> modal.Image:
-    tag = CUDA_IMAGE_TAG[arch]
+def make_cuda_image(tag: str) -> modal.Image:
     return (
         modal.Image.from_registry(
             f"nvidia/cuda:{tag}-devel-ubuntu22.04",
@@ -81,7 +83,14 @@ def make_cuda_image(arch: str) -> modal.Image:
         )
         .entrypoint([])
         .run_commands(
-            "apt-get update",
+            # The NVIDIA repo's Packages file is CDN-synced per mirror; a
+            # mid-sync hit fails the whole update with "File has unexpected
+            # size" and apt does NOT retry hash mismatches on its own.  Retry
+            # per-URI, then fall back to a fresh pass after a short pause.
+            (
+                "apt-get update -o Acquire::Retries=10 || "
+                "{ sleep 5; apt-get update -o Acquire::Retries=10; }"
+            ),
             "apt-get install -y --no-install-recommends ca-certificates curl",
             (
                 f"curl -fsSL https://github.com/NVIDIA/cutlass/archive/refs/tags/"
@@ -109,7 +118,8 @@ def make_cuda_image(arch: str) -> modal.Image:
     )
 
 
-IMAGES = {arch: make_cuda_image(arch) for arch in CUDA_IMAGE_TAG}
+_IMAGES_BY_TAG = {tag: make_cuda_image(tag) for tag in set(CUDA_IMAGE_TAG.values())}
+IMAGES = {arch: _IMAGES_BY_TAG[tag] for arch, tag in CUDA_IMAGE_TAG.items()}
 
 # ``kernel`` is the regex passed to ncu.  It may match a template
 # instantiation, e.g. ``blocktiling_2d_f16<128, 128, 16, 8, 8>``.
