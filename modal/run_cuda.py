@@ -11,7 +11,12 @@ Examples:
   # NCU-profile every GEMM kernel at 4096^3 (one timed launch each).
   modal run modal/run_cuda.py --suite all --mode ncu-sweep --size 4096 --gpu a10
 
-  # Do all of the above in one container.
+  # Cutlass practice: NCU-profile the naive CuTe v0 matmul on Hopper
+  # (bench + NCU + cuBLAS-at-2048 baseline in two runs).
+  modal run modal/run_cuda.py --suite cutlass --mode both --gpu h100 --open-reports
+  modal run modal/run_cuda.py --suite cublas --mode warmup --size 2048 --gpu h100
+
+  # Do all of the gemm-suite steps in one container.
   modal run modal/run_cuda.py --suite all --mode all --size 4096 --gpu a10
 """
 
@@ -34,6 +39,12 @@ REMOTE_ROOT = "/root/minileetcuda"
 REPORTS_MOUNT = "/reports"
 REPORTS_SUBDIR = "gemm"
 
+# CUTLASS headers for the CuteAlgebra-Cutlass practice kernels.  Downloaded
+# from the release tarball (no git in the image) and unpacked flat so
+# `-I /opt/cutlass/include` picks up cute/tensor.hpp.
+CUTLASS_TAG = "v4.8.1"  # commit 2c85f49, optimal codegen on CUDA 13.3
+CUTLASS_HOME = "/opt/cutlass"
+
 # The kernels use 5 warmup launches and 50 timed launches.  In NCU we profile
 # the first timed launch, so launch-skip = 1 correctness launch + 5 warmups.
 BENCH_WARMUP = 5
@@ -44,7 +55,61 @@ DEFAULT_SIZES = [128, 256, 512, 1024, 2048, 4096]
 GPU_CONFIGS = {
     "a10": {"gpu": "A10", "arch": "sm_86", "label": "NVIDIA A10"},
     "a100": {"gpu": "A100-40GB", "arch": "sm_80", "label": "NVIDIA A100 40GB"},
+    # "!" pins the H100: Modal may otherwise silently upgrade to an H200,
+    # which would swap bandwidth/memory-size numbers under the benchmark.
+    "h100": {"gpu": "H100!", "arch": "sm_90", "label": "NVIDIA H100 SXM"},
+    # Blackwell (sm_100) needs CUDA >= 12.8; 13.3.1 is the toolkit CUTLASS
+    # recommends for code generation on Blackwell.
+    "b200": {"gpu": "B200", "arch": "sm_100", "label": "NVIDIA B200"},
 }
+
+CUDA_IMAGE_TAG = {
+    "sm_75": "12.4.0",
+    "sm_80": "12.4.0",
+    "sm_86": "12.4.0",
+    "sm_90": "12.4.0",
+    "sm_100": "13.3.1",
+}
+
+
+def make_cuda_image(arch: str) -> modal.Image:
+    tag = CUDA_IMAGE_TAG[arch]
+    return (
+        modal.Image.from_registry(
+            f"nvidia/cuda:{tag}-devel-ubuntu22.04",
+            add_python="3.11",
+        )
+        .entrypoint([])
+        .run_commands(
+            "apt-get update",
+            "apt-get install -y --no-install-recommends ca-certificates curl",
+            (
+                f"curl -fsSL https://github.com/NVIDIA/cutlass/archive/refs/tags/"
+                f"{CUTLASS_TAG}.tar.gz -o /tmp/cutlass.tar.gz"
+                f" && mkdir -p {CUTLASS_HOME}"
+                f" && tar xzf /tmp/cutlass.tar.gz -C {CUTLASS_HOME}"
+                f" --strip-components=1"
+                f" && rm /tmp/cutlass.tar.gz"
+            ),
+        )
+        .add_local_dir(
+            str(REPO_ROOT),
+            remote_path=REMOTE_ROOT,
+            ignore=[
+                ".git",
+                "**/__pycache__",
+                "**/*.ncu-rep",
+                "**/*.csv",
+                "**/.DS_Store",
+                ".DS_Store",
+                "modal/reports",
+                "gemm/figures",
+            ],
+        )
+    )
+
+
+IMAGES = {arch: make_cuda_image(arch) for arch in CUDA_IMAGE_TAG}
 
 # ``kernel`` is the regex passed to ncu.  It may match a template
 # instantiation, e.g. ``blocktiling_2d_f16<128, 128, 16, 8, 8>``.
@@ -148,27 +213,147 @@ report_volume = modal.Volume.from_name(
     create_if_missing=True,
 )
 
-cuda_image = (
-    modal.Image.from_registry(
-        "nvidia/cuda:12.4.0-devel-ubuntu22.04",
-        add_python="3.11",
-    )
-    .entrypoint([])
-    .add_local_dir(
-        str(REPO_ROOT),
-        remote_path=REMOTE_ROOT,
-        ignore=[
-            ".git",
-            "**/__pycache__",
-            "**/*.ncu-rep",
-            "**/*.csv",
-            "**/.DS_Store",
-            ".DS_Store",
-            "modal/reports",
-            "gemm/figures",
-        ],
-    )
-)
+# ``kernel`` is the regex passed to ncu.  It may match a template
+# instantiation, e.g. ``blocktiling_2d_f16<128, 128, 16, 8, 8>``.
+# ``print_name`` is the label the standalone binary prints.
+#
+# The old gemm kernels share the runner's benchmark harness
+# (``name: X ms, Y GFLOP/s``); Cutlass practice kernels keep their own
+# harness, so they carry per-job regexes and timing conventions instead:
+#
+#  timing_re   -- (ms, flops-as-printed) capture; ``flops_factor`` converts
+#                  the printed flops unit into GFLOP/s for the shared CSV.
+#   mismatch_re -- plain count capture (no leading kernel name).
+#   bench_size  -- the source hardcodes its problem size (no argv), so every
+#                  CSV row / report file records this instead of --size.
+KERNELS = [
+    {
+        "id": "matmul_cute_v0",
+        "source": "CuteAlgebra-Cutlass/cutlass_practice/matmul_dummy.cu",
+        "kernel": "matmulCute",
+        "print_name": "matmulCute",
+        "dtype": "f16",
+        "display": "Naive CuTe v0 (SM75 atom)",
+        "cutlass": True,
+        "bench_size": 2048,
+        "warmup": 3,
+        "timed": 20,
+        "timing_re": r"^avg time: ([\d.]+) ms, ([\d.]+) TFLOP/s",
+        "flops_factor": 1000.0,  # printed TFLOP/s -> CSV GFLOP/s
+        "mismatch_re": r"^mismatches:\s+(\d+)",
+    },
+    {
+        "id": "naive_f32",
+        "source": "gemm/naive_f32.cu",
+        "kernel": "sgemm_naive",
+        "print_name": "sgemm_naive",
+        "dtype": "f32",
+        "display": "Naive (coalesced)",
+    },
+    {
+        "id": "naive_f16",
+        "source": "gemm/naive_f16.cu",
+        "kernel": "hGemm",
+        "print_name": "hGemm",
+        "dtype": "f16",
+        "display": "Naive (coalesced)",
+    },
+    {
+        "id": "shared_f32",
+        "source": "gemm/shared_f32.cu",
+        "kernel": "shared_sgemm",
+        "print_name": "shared_sgemm",
+        "dtype": "f32",
+        "display": "Shared memory",
+    },
+    {
+        "id": "shared_f16",
+        "source": "gemm/shared_f16.cu",
+        "kernel": "hSharedGemm",
+        "print_name": "hSharedGemm",
+        "dtype": "f16",
+        "display": "Shared memory",
+    },
+    {
+        "id": "blocktiling_1d_f32",
+        "source": "gemm/blocktiling_1d_f32.cu",
+        "kernel": "blocktiling_1d",
+        "print_name": "blocktiling_1d",
+        "dtype": "f32",
+        "display": "1D blocktiling",
+    },
+    {
+        "id": "blocktiling_1d_f16",
+        "source": "gemm/blocktiling_1d_f16.cu",
+        "kernel": "blocktiling_1d_f16",
+        "print_name": "blocktiling_1d_f16",
+        "dtype": "f16",
+        "display": "1D blocktiling",
+    },
+    {
+        "id": "blocktiling_2d_f32",
+        "source": "gemm/blocktiling_2d_f32.cu",
+        "kernel": "blocktiling_2d",
+        "print_name": "blocktiling_2d",
+        "dtype": "f32",
+        "display": "2D blocktiling (vectorized loads)",
+    },
+    {
+        "id": "blocktiling_2d_f16",
+        "source": "gemm/blocktiling_2d_f16.cu",
+        "kernel": "blocktiling_2d_f16",
+        "print_name": "blocktiling_2d_f16",
+        "dtype": "f16",
+        "display": "2D blocktiling",
+    },
+    {
+        "id": "cublas_sgemm",
+        "source": "gemm/cublas_ref.cu",
+        "kernel": None,
+        "print_name": "cublas_sgemm",
+        "dtype": "f32",
+        "display": "cuBLAS SGEMM",
+        "profile": False,
+    },
+    {
+        "id": "cublas_hgemm",
+        "source": "gemm/cublas_ref.cu",
+        "kernel": None,
+        "print_name": "cublas_hgemm",
+        "dtype": "f16",
+        "display": "cuBLAS HGEMM",
+        "profile": False,
+    },
+]
+
+KERNEL_BY_ID = {k["id"]: k for k in KERNELS}
+SUITES = {
+    "naive": ["naive_f32", "naive_f16"],
+    "cublas": ["cublas_sgemm", "cublas_hgemm"],
+    # Cutlass practice jobs run their own harness (output text, launch
+    # conventions, hardcoded problem size), so they live out of "all".
+    "cutlass": ["matmul_cute_v0"],
+    "all": [
+        "naive_f32",
+        "naive_f16",
+        "shared_f32",
+        "shared_f16",
+        "blocktiling_1d_f32",
+        "blocktiling_1d_f16",
+        "blocktiling_2d_f32",
+        "blocktiling_2d_f16",
+        "cublas_sgemm",
+        "cublas_hgemm",
+    ],
+}
+
+# Volume layout per suite, so gemm and cutlass artifacts don't interleave.
+REPORTS_SUBDIR_BY_SUITE = {
+    "naive": "gemm",
+    "cublas": "gemm",
+    "all": "gemm",
+    "cutlass": "cutlass",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +399,8 @@ def _compile(job: dict, arch: str, build_dir: Path) -> Path:
     ]
     if "cublas" in source.read_text(errors="ignore"):
         cmd.append("-lcublas")
+    if job.get("cutlass"):
+        cmd += ["-I", f"{CUTLASS_HOME}/include", "--expt-relaxed-constexpr"]
 
     print(f"\n=== compiling {job['source']} for {arch} ===")
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -269,23 +456,46 @@ MISMATCH_RE = re.compile(r"^(\w+) mismatches:\s+(\d+)\s*$", re.MULTILINE)
 
 
 def _parse_benchmark_output(text: str, job: dict) -> dict[str, float | int]:
-    timings = {
-        name: (float(ms), float(gflops))
-        for name, ms, gflops in TIMING_RE.findall(text)
-    }
+    factor = job.get("flops_factor", 1.0)
+
+    flattened = job.get("mismatch_re")
+    if flattened:
+        match = re.search(flattened, text, re.MULTILINE)
+        mismatches = {"": int(match.group(1)) if match else -1}
+    else:
+        mismatches = {
+            name: int(count) for name, count in MISMATCH_RE.findall(text)
+        }
+
+    timing_re = job.get("timing_re")
+    if timing_re:
+        # Custom harnesses (e.g. Cutlass practice kernels) print a single
+        # (ms, flops) pair with no leading name — capture it directly and
+        # register it under the job's print_name.
+        match = re.search(timing_re, text, re.MULTILINE)
+        if match is None:
+            raise RuntimeError(f"timing pattern matched nothing in:\n{text}")
+        ms, printed_flops = float(match.group(1)), float(match.group(2))
+        timings = {job["print_name"]: (ms, printed_flops * factor)}
+    else:
+        timings = {
+            name: (float(ms), float(gflops))
+            for name, ms, gflops in TIMING_RE.findall(text)
+        }
     if job["print_name"] not in timings:
         raise RuntimeError(
             f"could not find timing for {job['print_name']} in:\n{text}"
         )
 
-    mismatches = {
-        name: int(count) for name, count in MISMATCH_RE.findall(text)
-    }
     ms, gflops = timings[job["print_name"]]
+    if flattened:
+        mismatch_count = mismatches.get("", -1)
+    else:
+        mismatch_count = mismatches.get(job["print_name"], -1)
     return {
         "ms": ms,
         "gflops": gflops,
-        "mismatches": mismatches.get(job["print_name"], -1),
+        "mismatches": mismatch_count,
     }
 
 
@@ -418,6 +628,7 @@ def _profile_job(
     *,
     ncu_set: str,
     run_id: str,
+    subdir: str,
 ) -> list[str]:
     report_base = Path("/tmp") / f"{job['id']}_{size}_{run_id}"
     report_file = report_base.with_suffix(".ncu-rep")
@@ -428,7 +639,10 @@ def _profile_job(
     for path in (report_file, log_file, raw_csv, details_txt):
         path.unlink(missing_ok=True)
 
-    launch_skip = 1 + BENCH_WARMUP  # correctness launch + warmup launches
+    # Correctness launch + this job's warmup launches; anything else the
+    # binary launches (e.g. the reference kernel) must not match the NCU
+    # kernel regex, or the skip count drifts.
+    launch_skip = 1 + job.get("warmup", BENCH_WARMUP)
     cmd = [
         "ncu",
         "--set",
@@ -472,7 +686,7 @@ def _profile_job(
             f"(regex {job['kernel']!r}); see {log_file}"
         )
 
-    destination = Path(REPORTS_MOUNT) / REPORTS_SUBDIR
+    destination = Path(REPORTS_MOUNT) / subdir
     destination.mkdir(parents=True, exist_ok=True)
 
     # Persist the raw report first: exports below are best-effort and must not
@@ -511,6 +725,7 @@ def _write_metadata(
     reps: int,
     ncu_set: str,
     device: dict[str, str],
+    subdir: str,
 ) -> None:
     metadata = {
         "run_id": run_id,
@@ -528,7 +743,7 @@ def _write_metadata(
         "cuda": _version_of(["nvcc", "--version"]),
         "ncu": _version_of(["ncu", "--version"]),
     }
-    destination = Path(REPORTS_MOUNT) / REPORTS_SUBDIR
+    destination = Path(REPORTS_MOUNT) / subdir
     destination.mkdir(parents=True, exist_ok=True)
     path = destination / f"metadata_{run_id}.json"
     path.write_text(json.dumps(metadata, indent=2) + "\n")
@@ -547,6 +762,7 @@ def _impl(config: dict) -> dict:
     jobs = [KERNEL_BY_ID[job_id] for job_id in config["jobs"]]
     gpu_config = GPU_CONFIGS[config["gpu"]]
     arch = gpu_config["arch"]
+    subdir = config.get("subdir", REPORTS_SUBDIR)
 
     print(f"=== {gpu_config['gpu']} / {arch} / run {config['run_id']} ===")
 
@@ -567,11 +783,15 @@ def _impl(config: dict) -> dict:
         reps=config["reps"],
         ncu_set=config["ncu_set"],
         device=device,
+        subdir=subdir,
     )
 
-    bench_csv = Path(REPORTS_MOUNT) / REPORTS_SUBDIR / "bench_all.csv"
+    bench_csv = Path(REPORTS_MOUNT) / subdir / "bench_all.csv"
 
     def record(job: dict, size: int, rep: int, phase: str) -> None:
+        # Practice kernels hardcode their problem size in main(); trust the
+        # job's bench_size so CSV rows/report names match reality.
+        size = job.get("bench_size", size)
         parsed = _run_benchmark(job, executables[job["id"]], size)
         snapshot = _gpu_snapshot()
         row = _bench_row(
@@ -615,9 +835,10 @@ def _impl(config: dict) -> dict:
                 _profile_job(
                     job,
                     executables[job["id"]],
-                    config["size"],
+                    job.get("bench_size", config["size"]),
                     ncu_set=config["ncu_set"],
                     run_id=config["run_id"],
+                    subdir=subdir,
                 )
             )
 
@@ -631,13 +852,14 @@ def _impl(config: dict) -> dict:
         "run_id": config["run_id"],
         "artifacts": artifacts,
         "bench_csv": bench_csv.name,
+        "subdir": subdir,
         "gpu": gpu_config["gpu"],
         "arch": arch,
     }
 
 
 @app.function(
-    image=cuda_image,
+    image=IMAGES["sm_86"],
     gpu="A10",
     timeout=3600,
     startup_timeout=900,
@@ -648,7 +870,7 @@ def profile_a10(config: dict) -> dict:
 
 
 @app.function(
-    image=cuda_image,
+    image=IMAGES["sm_80"],
     gpu="A100-40GB",
     timeout=3600,
     startup_timeout=900,
@@ -658,15 +880,37 @@ def profile_a100(config: dict) -> dict:
     return _impl(config)
 
 
+@app.function(
+    image=IMAGES["sm_90"],
+    gpu="H100!",
+    timeout=3600,
+    startup_timeout=900,
+    volumes={REPORTS_MOUNT: report_volume},
+)
+def profile_h100(config: dict) -> dict:
+    return _impl(config)
+
+
+@app.function(
+    image=IMAGES["sm_100"],
+    gpu="B200",
+    timeout=3600,
+    startup_timeout=900,
+    volumes={REPORTS_MOUNT: report_volume},
+)
+def profile_b200(config: dict) -> dict:
+    return _impl(config)
+
+
 # ---------------------------------------------------------------------------
 # Local entrypoint
 # ---------------------------------------------------------------------------
 
 
-def _download_file(remote_name: str, local_dir: Path) -> Path:
+def _download_file(remote_name: str, local_dir: Path, subdir: str) -> Path:
     local_path = local_dir / remote_name
     local_path.parent.mkdir(parents=True, exist_ok=True)
-    remote_path = f"{REPORTS_SUBDIR}/{remote_name}"
+    remote_path = f"{subdir}/{remote_name}"
 
     print(f"downloading {remote_path} -> {local_path}")
     try:
@@ -694,8 +938,8 @@ def _download_file(remote_name: str, local_dir: Path) -> Path:
 
 @app.local_entrypoint()
 def main(
-    suite: Literal["naive", "cublas", "all"] = "naive",
-    gpu: Literal["a10", "a100"] = "a10",
+    suite: Literal["naive", "cublas", "cutlass", "all"] = "naive",
+    gpu: Literal["a10", "a100", "h100", "b200"] = "a10",
     mode: Literal["warmup", "profile", "both", "sweep", "ncu-sweep", "all"] = "both",
     size: int = 4096,
     sizes: str = ",".join(str(s) for s in DEFAULT_SIZES),
@@ -719,6 +963,7 @@ def main(
         "run_id": run_id,
         "jobs": SUITES[suite],
         "suite": suite,
+        "subdir": REPORTS_SUBDIR_BY_SUITE[suite],
         "gpu": gpu,
         "mode": mode,
         "size": size,
@@ -728,13 +973,20 @@ def main(
         "gpu_warmup": gpu_warmup,
     }
 
-    remote = profile_a10 if gpu == "a10" else profile_a100
+    remote_by_gpu = {
+        "a10": profile_a10,
+        "a100": profile_a100,
+        "h100": profile_h100,
+        "b200": profile_b200,
+    }
+    remote = remote_by_gpu[gpu]
     result = remote.remote(config)
     print("\n=== remote result ===")
     print(json.dumps(result, indent=2))
 
     local_dir = Path(download_dir) / run_id
     local_dir.mkdir(parents=True, exist_ok=True)
+    subdir = result.get("subdir", REPORTS_SUBDIR)
 
     # The benchmark CSV is shared across runs; always fetch the latest copy.
     downloads = list(result.get("artifacts", []))
@@ -743,7 +995,7 @@ def main(
 
     local_reports = []
     for name in downloads:
-        path = _download_file(name, local_dir)
+        path = _download_file(name, local_dir, subdir)
         if path.suffix == ".ncu-rep":
             local_reports.append(path)
 
