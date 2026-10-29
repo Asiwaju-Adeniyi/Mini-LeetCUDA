@@ -21,7 +21,9 @@ __global__ void mmaTile(const half *a, const half *b, half *c, int m, int n, int
    using opTrait = Copy_Trait<mmaOP>;
    using opAtom = MMA_Atom<opTrait>;
 
-   static constexpr int Mrepeat = 2;
-   static constexpr int Nrepeat = 2;
-   static constexpr int Krepeat = 1;
+   static constexpr int MrepeatEU = 2; //MMA repeat frequency along row-direction
+   static constexpr int NrepeatEU = 2; //MMA repeat frequency along col-direction
+   static constexpr int KrepeatEU = 1; //MMA repeat frequency along reduction dimension
+
+   
 }
