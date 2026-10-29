@@ -42,25 +42,39 @@ NCU (full set): Memory SOL 92% driven by **L1/TEX at 96%**, while Compute sits a
 
 ## Methodology
 
-| | |
-|---|---|
-| GPU | Tesla T4 (sm_75), Google Colab |
-| CUDA | 13.0 (nvcc 13.0.88) |
-| CUTLASS | `<commit hash>` |
-| Timing | `cudaEvent`, average over 20 iterations after 3 warmup launches |
-| Correctness | Compared elementwise against a plain CUDA reference kernel (fp32 accumulation). Inputs are multiples of 0.25 so the comparison is exact: 0 mismatches, max abs error 0 |
-| cuBLAS call | `cublasGemmEx`, `CUBLAS_COMPUTE_32F`, `CUBLAS_GEMM_DEFAULT_TENSOR_OP` |
+Same kernel, same harness, three GPUs: `matmul_dummy.cu` compiled per-arch against CUTLASS **v4.8.1 (commit `2c85f49`)**, pinned in the Modal images at `/opt/cutlass` (release tarball, no in-image git).
 
-**Caveat:** Colab T4 clocks vary with thermals and power limits, so absolute numbers shift between runs. The table reports `<N>` runs; the figure shown is the median. (Fill in after repeating the benchmark. v0 measured 2.389 ms and 2.375 ms on two separate runs.)
+| | Tesla T4 (sm_75) | H100 SXM 80GB (sm_90) | B200 (sm_100) |
+|---|---|---|---|
+| Where | Google Colab | Modal | Modal |
+| CUDA | 13.0 (nvcc 13.0.88) | 12.4.0 | 13.3.1 — sm_100 needs ≥ 12.8, and CUTLASS 4.x recommends 13.3 for codegen |
+| GPU selection | — | requested as `"H100!"`: Modal otherwise silently upgrades a plain `"H100"` request to an H200 (141 GB HBM, extra bandwidth), which would move the numbers | `"B200"` |
+| NCU | — | `full` set on the first timed launch (skip 4 = correctness + 3 warmup launches), with the CUDA 13.3 image's NCU 2026.x — the 12.4 image's NCU 2024.1 cannot *prepare* sm_90 kernels for profiling against Modal's R610 driver ("Unknown Error on device 0" on every metric set) | same 13.3-image NCU, `full` set |
+| Timing | `cudaEvent`, average over 20 iterations after 1 correctness + 1 `ref_gemm` + 3 warmup launches | same harness | same harness |
+| Correctness | elementwise compare against a plain CUDA fp32-accumulate reference kernel; inputs are multiples of 0.25 so the compare is exact: 0 mismatches, max abs error 0 | same | same |
+| cuBLAS call | `cublasGemmEx`, `CUBLAS_COMPUTE_32F`, `CUBLAS_GEMM_DEFAULT_TENSOR_OP` | same call, measured by `gemm/cublas_ref.cu` in its own 20-launch-avg run at 2048³ | same |
+
+**Caveat:** Colab T4 clocks vary with thermals and power limits, so absolute numbers shift between runs (v0 measured 2.389 ms and 2.375 ms on two separate tries; table shows the second). Modal containers report their clocks per run (H100: 1.98 GHz SM / 2619 MHz HBM) and NCU ran with unmodified clocks (`--clock-control none`) — its kernel duration (307.5 µs) matched the event-timed 0.310 ms within 1%.
 
 ## Reproduce
+
+Manual, any box with a CUDA ≥ 12.8 toolkit and CUTLASS headers on the path:
 
 ```bash
 git clone --depth 1 https://github.com/NVIDIA/cutlass.git
 
 nvcc -std=c++17 --expt-relaxed-constexpr -arch=sm_75 \
-  -I cutlass/include -I cutlass/tools/util/include \
-  cute_gemm.cu -o cute_gemm -lcublas && ./cute_gemm
+  -I cutlass/include \
+  CuteAlgebra-Cutlass/cutlass_practice/matmul_dummy.cu -o cute_gemm -lcublas && ./cute_gemm
+```
+
+Or via the repo's Modal runner, which produced the H100/B200 rows, the rolling CSV and the downloadable `.ncu-rep` reports:
+
+```bash
+# From the repo root (bench + NCU + auto-open reports locally):
+modal run modal/run_cuda.py --suite cutlass --mode both --gpu h100 --open-reports
+modal run modal/run_cuda.py --suite cublas --mode warmup --size 2048 --gpu h100
+# Blackwell: the same two commands with --gpu b200
 ```
 
 Expected output format:
