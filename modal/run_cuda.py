@@ -902,6 +902,22 @@ def profile_h100(config: dict) -> dict:
 
 
 @app.function(
+    # Same pinned H100, but on the 13.3.1 toolkit chain.  The CUDA 12.4 image's
+    # Nsight Compute (2024.1) fails to *prepare* sm_90 kernels for profiling
+    # ("Unknown Error on device 0") against Modal's R610 driver — the newer
+    # NCU bundled with CUDA 13.3 is driver-matched and works.  Use with
+    # --mode profile so benchmark rows stay on the 12.4 convention.
+    image=IMAGES["sm_100"],
+    gpu="H100!",
+    timeout=3600,
+    startup_timeout=900,
+    volumes={REPORTS_MOUNT: report_volume},
+)
+def profile_h100_cuda13(config: dict) -> dict:
+    return _impl(config)
+
+
+@app.function(
     image=IMAGES["sm_100"],
     gpu="B200",
     timeout=3600,
@@ -958,6 +974,7 @@ def main(
     download_dir: str = str(REPO_ROOT / "modal" / "reports"),
     open_reports: bool = False,
     gpu_warmup: bool = True,
+    ncu_toolkit13: bool = False,
 ) -> None:
     size_list = [int(s) for s in sizes.split(",") if s.strip()]
     if not size_list:
@@ -990,6 +1007,15 @@ def main(
         "b200": profile_b200,
     }
     remote = remote_by_gpu[gpu]
+    # Profiling-only escape hatch: the newer NCU in the 13.3.1 image when the
+    # 12.4 image's profiler cannot instrument sm_90 kernels on this driver.
+    if gpu == "h100" and ncu_toolkit13:
+        if mode not in ("profile", "ncu-sweep"):
+            raise ValueError(
+                "--ncu-toolkit13 is profiling-only (use --mode profile); "
+                "benchmark numbers stay on the CUDA 12.4 convention"
+            )
+        remote = profile_h100_cuda13
     result = remote.remote(config)
     print("\n=== remote result ===")
     print(json.dumps(result, indent=2))
