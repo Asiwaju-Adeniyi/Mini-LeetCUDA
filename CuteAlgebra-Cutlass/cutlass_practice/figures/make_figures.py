@@ -118,7 +118,7 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
         color=STYLE["cublas_hgemm"]["color"], label="cuBLAS HGEMM",
     )
     ax_speed.set_yscale("log")
-    ax_speed.set_ylim(1, max(ref_tf) * 3)
+    ax_speed.set_ylim(1, max(ref_tf) * 10)
     ax_speed.set_xticks(list(x))
     ax_speed.set_xticklabels(labels)
     ax_speed.set_ylabel("TFLOP/s (log scale)")
@@ -132,7 +132,7 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
                 xytext=(0, 3), textcoords="offset points",
                 ha="center", fontsize=8,
             )
-    ax_speed.legend(loc="upper right", fontsize=8)
+    ax_speed.legend(loc="upper left", fontsize=8)
 
     # Panel B: v0 as % of the same GPU's cuBLAS — the "naive barely scales"
     # story in one line of bars.
