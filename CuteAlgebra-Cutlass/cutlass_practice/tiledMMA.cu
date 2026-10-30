@@ -47,6 +47,14 @@ __global__ void mmaTile(const half *a, const half *b, half *c, int m, int n, int
    auto trB = tMMA.partition_fragment_A(lB(_, _, 0));
    auto tgB = tMMA.partition_A(lB(_, _, 0));
 
-   
+   auto trC = tMMA.partition_fragment_A(lC);
+   auto tgC = tMMA.partition_C(lC);
+
+   cute::copy(tgA, trA);
+   cute::copy(tgB, trB);
+
+   cute::gemm(tiled_mma, trA, trB, trC);
+
+   cute::copy(trC, tgC);
    
 }
