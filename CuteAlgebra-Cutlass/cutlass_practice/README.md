@@ -27,7 +27,7 @@ Problem: `M = N = K = 2048`, fp16 inputs, fp32 accumulation. One kernel, three G
 | Version | Time (ms) | TFLOP/s | % of cuBLAS | What changed |
 |---|---|---|---|---|
 | cuBLAS HGEMM (reference) | 0.027 | 630.38 | 100% | same `cublasGemmEx` call as the T4 row |
-| v0: naive CuTe | 0.310 | 55.5 | 9% | not changed — same SM75 atom, still no shared memory |
+| v0: naive CuTe | 0.310 | 55.6 | 9% | not changed — same SM75 atom, still no shared memory |
 
 NCU (full set): Memory SOL 92% driven by **L1/TEX at 96%**, while Compute sits at 11% and DRAM at 2% — every operand tile is re-read through the L1 datapath, so the tensor cores mostly wait. v0 is **7.6× faster** than on T4 in absolute terms, yet a *smaller* fraction of cuBLAS: the latency-limited naive kernel barely scales, while cuBLAS's tuned Hopper path does.
 

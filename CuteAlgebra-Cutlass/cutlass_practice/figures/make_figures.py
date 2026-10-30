@@ -141,7 +141,7 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
     ax_pct.set_xticks(list(x))
     ax_pct.set_xticklabels(labels)
     ax_pct.set_ylabel("v0 as % of same-GPU cuBLAS")
-    ax_pct.set_title("Relative: v0 \u00f7 cuBLAS purity penalty")
+    ax_pct.set_title("Relative: v0 \u00f7 same-GPU cuBLAS")
     ax_pct.grid(True, axis="y", alpha=0.25)
     for bar, val in zip(bars_pct, pct):
         ax_pct.annotate(
