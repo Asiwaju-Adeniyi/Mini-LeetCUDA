@@ -1,0 +1,10 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 94 (/tmp/minileetcuda_build/matmul_cute_v0)
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "matmulCute": 0%....50%....100% - 41 passes
+mismatches: 0, max abs error: 0
+avg time: 418.900 ms, 0.04 TFLOP/s
+==PROF== Disconnected from process 94
+==PROF== Report: /tmp/matmul_cute_v0_2048_20261030T143800Z.ncu-rep

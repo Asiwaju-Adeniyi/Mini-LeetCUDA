@@ -38,6 +38,8 @@ NCU (full set): Memory SOL 92% driven by **L1/TEX at 96%**, while Compute sits a
 | cuBLAS HGEMM (reference) | 0.014 | 1188.71 | 100% | same `cublasGemmEx` call again |
 | v0: naive CuTe | 0.298 | 57.7 | 5% | still the same SM75 atom; v0 gains only ~4% over its own H100 number while cuBLAS almost doubles |
 
+NCU (full set, 41 passes): the same L1 wall — **L1/TEX at 96%** and Memory SOL 83%, with Compute at 20% and DRAM at 0.7% (IPC 0.39, 303 µs vs 308 µs on H100 at the same ~1.8 GHz). Blackwell's wider SM buys a little more compute headroom, not a better data path: the naive global-to-register pipeline still saturates L1 while the tensor cores wait.
+
 The gap widens every generation: **17% → 9% → 5%** of same-GPU cuBLAS. v0 barely moves from H100 to B200 (55.6 → 57.7 TFLOP/s) because its ceiling is the L1/latency path of the naive global-to-register pipeline, not FLOPs — while cuBLAS (630 → 1187 TFLOP/s) rides Blackwell's tensor cores, TMA and wider memory system. That is precisely what the v1+ ladder (shared memory → `TiledCopy` → swizzling → pipelining) is meant to recover.
 
 ![v0 vs cuBLAS across T4, H100 and B200](figures/v0_vs_cublas_cross_gpu.png)
