@@ -3,9 +3,9 @@
 ### NOTE: All Kernels Are Handwritten For Learning Purposes. Claude/DeepSeek Helped With Benchmarking. 
 
 
-These are Fp16 tensor-core GEMM written with CUTLASS/CuTe on a Tesla T4 (sm_75) just because I am GPU-poor. Each kernel version is benchmarked against cuBLAS, so every optimization is measured against a fixed reference.
+These are Fp16 tensor-core GEMMs written with CUTLASS/CuTe, originally on a Tesla T4 (sm_75) on Colab because I was GPU-poor at the time. Each kernel version is benchmarked against cuBLAS, so every optimization is measured against a fixed reference.
 
-Update: Now, I'm GPU-rich. I didn't know I had an unused FlashInfer Modal credits from February. But thanks to [Bikram Mahji](https://github.com/bikrammajhi). Will be profiling my kernels with Hopper/Blackwell. 
+**Update (Oct 2026): I'm GPU-rich now.** That T4 phase is over: I discovered I had ~$1,000 of unused Modal credits from the NVIDIA FlashInfer competition in February 2026 — even though I didn't take part in it — and Charles Frye of Modal also gave me ~$60 in GPU credits. Thanks to [Bikram Mahji](https://github.com/bikrammajhi) for the heads-up. The T4 numbers below stay as the original baseline; the H100 and B200 tables were profiled on Modal.
 
 ## Results
 
