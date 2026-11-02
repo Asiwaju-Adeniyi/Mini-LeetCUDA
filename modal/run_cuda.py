@@ -11,8 +11,8 @@ Examples:
   # NCU-profile every GEMM kernel at 4096^3 (one timed launch each).
   modal run modal/run_cuda.py --suite all --mode ncu-sweep --size 4096 --gpu a10
 
-  # Cutlass practice: NCU-profile the naive CuTe v0 matmul on Hopper
-  # (bench + NCU + cuBLAS-at-2048 baseline in two runs).
+  # Cutlass practice: benchmark/NCU-profile the naive CuTe v0 and explicit
+  # TiledMMA matmuls on Hopper (plus the cuBLAS-at-2048 baseline).
   modal run modal/run_cuda.py --suite cutlass --mode both --gpu h100 --open-reports
   modal run modal/run_cuda.py --suite cublas --mode warmup --size 2048 --gpu h100
 
@@ -253,6 +253,21 @@ KERNELS = [
         "mismatch_re": r"^mismatches:\s+(\d+)",
     },
     {
+        "id": "tiled_mma",
+        "source": "CuteAlgebra-Cutlass/cutlass_practice/tiledMMA.cu",
+        "kernel": "mmaTile",
+        "print_name": "mmaTile",
+        "dtype": "f16",
+        "display": "TiledMMA (SM80 atom)",
+        "cutlass": True,
+        "bench_size": 2048,
+        "warmup": 3,
+        "timed": 20,
+        "timing_re": r"^avg time: ([\d.]+) ms, ([\d.]+) TFLOP/s",
+        "flops_factor": 1000.0,  # printed TFLOP/s -> CSV GFLOP/s
+        "mismatch_re": r"^mismatches:\s+(\d+)",
+    },
+    {
         "id": "naive_f32",
         "source": "gemm/naive_f32.cu",
         "kernel": "sgemm_naive",
@@ -342,7 +357,7 @@ SUITES = {
     "cublas": ["cublas_sgemm", "cublas_hgemm"],
     # Cutlass practice jobs run their own harness (output text, launch
     # conventions, hardcoded problem size), so they live out of "all".
-    "cutlass": ["matmul_cute_v0"],
+    "cutlass": ["matmul_cute_v0", "tiled_mma"],
     "all": [
         "naive_f32",
         "naive_f16",

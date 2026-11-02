@@ -1,0 +1,10 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 241 (/tmp/minileetcuda_build/tiled_mma)
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "mmaTile": 0%....50%....100% - 40 passes
+mismatches: 0, max abs error: 0
+avg time: 224.137 ms, 0.08 TFLOP/s
+==PROF== Disconnected from process 241
+==PROF== Report: /tmp/tiled_mma_2048_20261102T040330Z.ncu-rep
