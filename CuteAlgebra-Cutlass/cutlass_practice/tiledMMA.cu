@@ -23,11 +23,37 @@ __global__ void mmaTile(const half_t* a, const half_t* b, float* c,
   Tensor lC = local_tile(C, make_tile(Int<mTile>{}, Int<nTile>{}), make_coord(blockIdx.y, blockIdx.x));
 
   // SM80 16x8x16, fp16 inputs, fp32 accumulate.
-  using mmaOP = SM80_16x8x16_F32F16F16F32_TN;
-  using opAtom = MMA_Atom<mmaOP>;
-  using MMA = decltype(make_tiled_mma(opAtom{}, Layout<Shape<_2, _2, _1>>{}));
+using mma_op = SM80_16x8x16_F32F16F16F32_TN;
+using mma_traits = MMA_Traits<mma_op>;
+using mma_atom = MMA_Atom<mma_traits>;
 
-  MMA tiled_mma;
+constexpr int kMmaEURepeatM = 2;
+constexpr int kMmaEURepeatN = 2;
+constexpr int kMmaEURepeatK = 1;
+
+static constexpr int kMmaPM = 32;
+static constexpr int kMmaPN = 32;
+static constexpr int kMmaPK = 16;
+
+using MMA_EU_RepeatT = decltype(make_layout(make_shape(
+    Int<kMmaEURepeatM>{},
+    Int<kMmaEURepeatN>{},
+    Int<kMmaEURepeatK>{}
+)));
+
+using MMA_P_T = Tile<
+    Int<kMmaPM>,
+    Int<kMmaPN>,
+    Int<kMmaPK>
+>;
+
+using MMA = decltype(make_tiled_mma(
+    mma_atom{},
+    MMA_EU_RepeatT{},
+    MMA_P_T{}
+));
+
+MMA tiled_mma;
   auto thr_mma = tiled_mma.get_slice(threadIdx.x);
 
   Tensor tAgA = thr_mma.partition_A(lA);   // (MMA, MMA_M, MMA_K, k_tile)
