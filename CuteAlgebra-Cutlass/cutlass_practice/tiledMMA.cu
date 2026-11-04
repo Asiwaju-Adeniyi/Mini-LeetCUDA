@@ -38,7 +38,6 @@ using MMA = decltype(make_tiled_mma(
     MMA_P_T{}
 ));
 
-
 using TiledMMA = MMA;
 
 
@@ -47,11 +46,10 @@ using TiledMMA = MMA;
 // Every warp builds the same TiledMMA; the block-level tile is 128x128x32 and
 // the MMA atom is the SM80 16x8x16 fp16 tensor-core instruction with fp32
 // accumulation (so the accumulator matches the fp32 reference below).
+
 template <int mTile, int nTile, int kTile>
 __global__ void mmaTile(const half_t* a, const half_t* b, float* c,
                         int m, int n, int k) {
-  
-
   Tensor A = make_tensor(make_gmem_ptr(a), make_shape(m, k), make_stride(k, Int<1>{}));
   Tensor B = make_tensor(make_gmem_ptr(b), make_shape(n, k), make_stride(k, Int<1>{}));
   Tensor C = make_tensor(make_gmem_ptr(c), make_shape(m, n), make_stride(n, Int<1>{}));
