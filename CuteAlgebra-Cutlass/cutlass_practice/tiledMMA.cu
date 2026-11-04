@@ -7,21 +7,6 @@
 
 using namespace cute;
 
-// C (M by N) = A (M by K) * B^T, where B is stored as (N by K).
-// Every warp builds the same TiledMMA; the block-level tile is 128x128x32 and
-// the MMA atom is the SM80 16x8x16 fp16 tensor-core instruction with fp32
-// accumulation (so the accumulator matches the fp32 reference below).
-template <int mTile, int nTile, int kTile>
-__global__ void mmaTile(const half_t* a, const half_t* b, float* c,
-                        int m, int n, int k) {
-  Tensor A = make_tensor(make_gmem_ptr(a), make_shape(m, k), make_stride(k, Int<1>{}));
-  Tensor B = make_tensor(make_gmem_ptr(b), make_shape(n, k), make_stride(k, Int<1>{}));
-  Tensor C = make_tensor(make_gmem_ptr(c), make_shape(m, n), make_stride(n, Int<1>{}));
-
-  Tensor lA = local_tile(A, make_tile(Int<mTile>{}, Int<kTile>{}), make_coord(blockIdx.y, _));
-  Tensor lB = local_tile(B, make_tile(Int<nTile>{}, Int<kTile>{}), make_coord(blockIdx.x, _));
-  Tensor lC = local_tile(C, make_tile(Int<mTile>{}, Int<nTile>{}), make_coord(blockIdx.y, blockIdx.x));
-
   // SM80 16x8x16, fp16 inputs, fp32 accumulate.
 using mma_op = SM80_16x8x16_F32F16F16F32_TN;
 using mma_traits = MMA_Traits<mma_op>;
@@ -53,7 +38,30 @@ using MMA = decltype(make_tiled_mma(
     MMA_P_T{}
 ));
 
-MMA tiled_mma;
+
+using TiledMMA = MMA;
+
+
+
+// C (M by N) = A (M by K) * B^T, where B is stored as (N by K).
+// Every warp builds the same TiledMMA; the block-level tile is 128x128x32 and
+// the MMA atom is the SM80 16x8x16 fp16 tensor-core instruction with fp32
+// accumulation (so the accumulator matches the fp32 reference below).
+template <int mTile, int nTile, int kTile>
+__global__ void mmaTile(const half_t* a, const half_t* b, float* c,
+                        int m, int n, int k) {
+  
+
+  Tensor A = make_tensor(make_gmem_ptr(a), make_shape(m, k), make_stride(k, Int<1>{}));
+  Tensor B = make_tensor(make_gmem_ptr(b), make_shape(n, k), make_stride(k, Int<1>{}));
+  Tensor C = make_tensor(make_gmem_ptr(c), make_shape(m, n), make_stride(n, Int<1>{}));
+
+  Tensor lA = local_tile(A, make_tile(Int<mTile>{}, Int<kTile>{}), make_coord(blockIdx.y, _));
+  Tensor lB = local_tile(B, make_tile(Int<nTile>{}, Int<kTile>{}), make_coord(blockIdx.x, _));
+  Tensor lC = local_tile(C, make_tile(Int<mTile>{}, Int<nTile>{}), make_coord(blockIdx.y, blockIdx.x));
+
+  TiledMMA tiled_mma;
+
   auto thr_mma = tiled_mma.get_slice(threadIdx.x);
 
   Tensor tAgA = thr_mma.partition_A(lA);   // (MMA, MMA_M, MMA_K, k_tile)
@@ -91,12 +99,12 @@ __global__ void ref_gemm(const half_t* A, const half_t* B, float* C,
   }
 }
 
+
 int main() {
   constexpr int tileM = 128, tileN = 128, tileK = 32;
   int M = 2048, N = 2048, K = 2048;   // must be multiples of 128, 128, 32
 
-  using MmaAtom = MMA_Atom<SM80_16x8x16_F32F16F16F32_TN>;
-  auto tiled_mma = make_tiled_mma(MmaAtom{}, Layout<Shape<_2, _2, _1>>{});  // 2x2 warps = 128 threads
+  TiledMMA tiledMMA;
 
   thrust::host_vector<half_t> h_A(M * K), h_B(N * K);
   for (int i = 0; i < M * K; ++i) h_A[i] = half_t(float((i % 7) - 3) / 4.f);
