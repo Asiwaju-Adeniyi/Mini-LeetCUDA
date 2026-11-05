@@ -7,6 +7,8 @@ generic kernels are also run on H100 and B200 for a cross-generation comparison.
 work and currently contain only placeholders. All benchmark tables, NCU notes,
 and reproduction commands stay in this README.
 
+### NOTE: All Kernels Are Handwritten For Learning Purposes. Claude/DeepSeek Helped With Benchmarking.
+
 ## Layout
 
 | Path | Target | What it is | Status |
