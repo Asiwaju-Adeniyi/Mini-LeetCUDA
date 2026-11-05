@@ -11,8 +11,8 @@ Examples:
   # NCU-profile every GEMM kernel at 4096^3 (one timed launch each).
   modal run modal/run_cuda.py --suite all --mode ncu-sweep --size 4096 --gpu a10
 
-  # Cutlass practice: benchmark/NCU-profile the naive CuTe v0 and explicit
-  # TiledMMA matmuls on Hopper (plus the cuBLAS-at-2048 baseline).
+  # Cutlass practice: benchmark/NCU-profile the Ampere v0 and explicit
+  # TiledMMA matmuls on Hopper/Blackwell (plus the cuBLAS-at-2048 baseline).
   modal run modal/run_cuda.py --suite cutlass --mode both --gpu h100 --open-reports
   modal run modal/run_cuda.py --suite cublas --mode warmup --size 2048 --gpu h100
 
@@ -239,11 +239,11 @@ report_volume = modal.Volume.from_name(
 KERNELS = [
     {
         "id": "matmul_cute_v0",
-        "source": "CuteAlgebra-Cutlass/cutlass_practice/matmul_dummy.cu",
+        "source": "CuteAlgebra-Cutlass/cutlass_practice/Ampere/01_naive_cute.cu",
         "kernel": "matmulCute",
         "print_name": "matmulCute",
         "dtype": "f16",
-        "display": "Naive CuTe v0 (SM75 atom)",
+        "display": "Ampere v0 (SM75 atom)",
         "cutlass": True,
         "bench_size": 2048,
         "warmup": 3,
@@ -254,11 +254,11 @@ KERNELS = [
     },
     {
         "id": "tiled_mma",
-        "source": "CuteAlgebra-Cutlass/cutlass_practice/tiledMMA.cu",
+        "source": "CuteAlgebra-Cutlass/cutlass_practice/Ampere/02_tiled_mma_sm80.cu",
         "kernel": "mmaTile",
         "print_name": "mmaTile",
         "dtype": "f16",
-        "display": "TiledMMA (SM80 atom)",
+        "display": "Ampere TiledMMA (SM80 atom)",
         "cutlass": True,
         "bench_size": 2048,
         "warmup": 3,

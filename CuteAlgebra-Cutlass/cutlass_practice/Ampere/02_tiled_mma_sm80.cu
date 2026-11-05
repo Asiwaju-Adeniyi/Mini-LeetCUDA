@@ -32,13 +32,14 @@ using MMA_P_T = Tile<
     Int<kMmaPK>
 >;
 
+// Deliberately named MMA rather than TiledMMA: with `using namespace cute`,
+// a global `TiledMMA` alias collides with cute::TiledMMA and makes
+// `TiledMMA x;` ambiguous.
 using MMA = decltype(make_tiled_mma(
     mma_atom{},
     MMA_EU_RepeatT{},
     MMA_P_T{}
 ));
-
-using TiledMMA = MMA;
 
 
 
@@ -58,7 +59,7 @@ __global__ void mmaTile(const half_t* a, const half_t* b, float* c,
   Tensor lB = local_tile(B, make_tile(Int<nTile>{}, Int<kTile>{}), make_coord(blockIdx.x, _));
   Tensor lC = local_tile(C, make_tile(Int<mTile>{}, Int<nTile>{}), make_coord(blockIdx.y, blockIdx.x));
 
-  TiledMMA tiled_mma;
+  MMA tiled_mma;
 
   auto thr_mma = tiled_mma.get_slice(threadIdx.x);
 
@@ -102,7 +103,7 @@ int main() {
   constexpr int tileM = 128, tileN = 128, tileK = 32;
   int M = 2048, N = 2048, K = 2048;   // must be multiples of 128, 128, 32
 
-  TiledMMA tiledMMA;
+  MMA tiledMMA;
 
   thrust::host_vector<half_t> h_A(M * K), h_B(N * K);
   for (int i = 0; i < M * K; ++i) h_A[i] = half_t(float((i % 7) - 3) / 4.f);
@@ -116,7 +117,7 @@ int main() {
   float* pR = thrust::raw_pointer_cast(d_R.data());
 
   dim3 grid(N / tileN, M / tileM);
-  dim3 block(int(size(tiled_mma)));
+  dim3 block(int(size(tiledMMA)));
 
   auto launch = [&]() {
     mmaTile<tileM, tileN, tileK><<<grid, block>>>(pA, pB, pC, M, N, K);

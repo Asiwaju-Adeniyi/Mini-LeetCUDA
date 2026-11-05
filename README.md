@@ -121,8 +121,10 @@ Mini-LeetCUDA/
 ├── vector addition/     # Elementwise add kernels
 ├── CudaForDLClassQuizzes/
 ├── CuteAlgebra-Cutlass/
+│   ├── CUTE_ALGEBRA_NOTES.md  # CuTe layout/algebra study notes
+│   └── cutlass_practice/      # Ampere → Hopper → Blackwell GEMM practice
 ├── trainingloop/
-└── modal/               # Remote compile/benchmark/NCU runner (A10/A100 presets)
+└── modal/               # Remote compile/benchmark/NCU runner (A10/A100/H100/B200)
 ```
 
 The GEMM files use a dtype suffix:

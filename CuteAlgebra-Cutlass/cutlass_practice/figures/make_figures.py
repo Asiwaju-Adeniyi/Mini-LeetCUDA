@@ -3,8 +3,9 @@
 
 Unlike the gemm sweep (one kernel, many sizes), this practice keeps the
 problem fixed at M = N = K = 2048 and moves it across GPUs. The first chart
-is a grouped bar pair per GPU (v0 vs cuBLAS); the second compares the explicit
-TiledMMA kernel against both on H100/B200 (the SM80 atom has no T4 path).
+is a grouped bar pair per GPU (Ampere v0 vs cuBLAS); the second compares the
+explicit Ampere TiledMMA kernel against both on H100/B200 (the SM80 atom has no
+T4 path).
 
 Usage (any venv with matplotlib):
     python figures/make_figures.py
@@ -48,8 +49,8 @@ T4 = {
 }
 
 STYLE = {
-    "matmul_cute_v0": dict(color="tab:blue", label="v0: naive CuTe"),
-    "tiled_mma": dict(color="tab:green", label="TiledMMA (SM80 atom)"),
+    "matmul_cute_v0": dict(color="tab:blue", label="Ampere v0 (SM75 atom)"),
+    "tiled_mma": dict(color="tab:green", label="Ampere TiledMMA (SM80 atom)"),
     "cublas_hgemm": dict(color="tab:red", label="cuBLAS HGEMM"),
 }
 
@@ -120,7 +121,8 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
     width = 0.38
     bars_v0 = ax_speed.bar(
         [i - width / 2 for i in x], v0_tf, width,
-        color=STYLE["matmul_cute_v0"]["color"], label="v0: naive CuTe",
+        color=STYLE["matmul_cute_v0"]["color"],
+        label=STYLE["matmul_cute_v0"]["label"],
     )
     bars_ref = ax_speed.bar(
         [i + width / 2 for i in x], ref_tf, width,
@@ -131,7 +133,7 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
     ax_speed.set_xticks(list(x))
     ax_speed.set_xticklabels(labels)
     ax_speed.set_ylabel("TFLOP/s (log scale)")
-    ax_speed.set_title("Absolute: v0 vs cuBLAS, 2048\u00b3 fp16")
+    ax_speed.set_title("Absolute: Ampere v0 vs cuBLAS, 2048\u00b3 fp16")
     ax_speed.grid(True, axis="y", alpha=0.25)
     for bars, values in ((bars_v0, v0_tf), (bars_ref, ref_tf)):
         for bar, val in zip(bars, values):
@@ -161,7 +163,7 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
         )
 
     fig.suptitle(
-        "Naive CuTe v0 vs cuBLAS HGEMM across GPUs, M = N = K = 2048",
+        "Ampere v0 vs cuBLAS HGEMM across GPUs, M = N = K = 2048",
         fontsize=11, y=1.0,
     )
     fig.tight_layout()
@@ -195,8 +197,8 @@ def tiled_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> Non
     x = list(range(len(arches)))
     width = 0.26
     series = (
-        ("matmul_cute_v0", v0_tf, -width, "v0: naive CuTe"),
-        ("tiled_mma", tiled_tf, 0.0, "TiledMMA (SM80 atom)"),
+        ("matmul_cute_v0", v0_tf, -width, STYLE["matmul_cute_v0"]["label"]),
+        ("tiled_mma", tiled_tf, 0.0, STYLE["tiled_mma"]["label"]),
         ("cublas_hgemm", ref_tf, width, "cuBLAS HGEMM"),
     )
     for kernel, values, offset, label in series:
@@ -217,17 +219,19 @@ def tiled_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> Non
     ax_speed.set_xticks(x)
     ax_speed.set_xticklabels(labels)
     ax_speed.set_ylabel("TFLOP/s (log scale)")
-    ax_speed.set_title("Absolute: TiledMMA vs v0 vs cuBLAS")
+    ax_speed.set_title("Absolute: Ampere TiledMMA vs v0 vs cuBLAS")
     ax_speed.grid(True, axis="y", alpha=0.25)
     ax_speed.legend(loc="upper left", fontsize=8)
 
     bars_v0 = ax_pct.bar(
         [i - width / 2 for i in x], pct_v0, width,
-        color=STYLE["matmul_cute_v0"]["color"], label="v0: naive CuTe",
+        color=STYLE["matmul_cute_v0"]["color"],
+        label=STYLE["matmul_cute_v0"]["label"],
     )
     bars_tiled = ax_pct.bar(
         [i + width / 2 for i in x], pct_tiled, width,
-        color=STYLE["tiled_mma"]["color"], label="TiledMMA (SM80 atom)",
+        color=STYLE["tiled_mma"]["color"],
+        label=STYLE["tiled_mma"]["label"],
     )
     for bars, values, fmt in (
         (bars_v0, pct_v0, "{:.1f}%"),
@@ -249,7 +253,7 @@ def tiled_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> Non
     ax_pct.legend(loc="upper right", fontsize=8)
 
     fig.suptitle(
-        "Explicit TiledMMA vs naive CuTe v0 vs cuBLAS, M = N = K = 2048",
+        "Ampere TiledMMA vs v0 vs cuBLAS, M = N = K = 2048",
         fontsize=11, y=1.0,
     )
     fig.tight_layout()
