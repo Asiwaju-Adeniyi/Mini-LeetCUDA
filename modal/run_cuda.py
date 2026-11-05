@@ -121,101 +121,6 @@ def make_cuda_image(tag: str) -> modal.Image:
 _IMAGES_BY_TAG = {tag: make_cuda_image(tag) for tag in set(CUDA_IMAGE_TAG.values())}
 IMAGES = {arch: _IMAGES_BY_TAG[tag] for arch, tag in CUDA_IMAGE_TAG.items()}
 
-# ``kernel`` is the regex passed to ncu.  It may match a template
-# instantiation, e.g. ``blocktiling_2d_f16<128, 128, 16, 8, 8>``.
-# ``print_name`` is the label the standalone binary prints.
-KERNELS = [
-    {
-        "id": "naive_f32",
-        "source": "gemm/naive_f32.cu",
-        "kernel": "sgemm_naive",
-        "print_name": "sgemm_naive",
-        "dtype": "f32",
-        "display": "Naive (coalesced)",
-    },
-    {
-        "id": "naive_f16",
-        "source": "gemm/naive_f16.cu",
-        "kernel": "hGemm",
-        "print_name": "hGemm",
-        "dtype": "f16",
-        "display": "Naive (coalesced)",
-    },
-    {
-        "id": "shared_f32",
-        "source": "gemm/shared_f32.cu",
-        "kernel": "shared_sgemm",
-        "print_name": "shared_sgemm",
-        "dtype": "f32",
-        "display": "Shared memory",
-    },
-    {
-        "id": "shared_f16",
-        "source": "gemm/shared_f16.cu",
-        "kernel": "hSharedGemm",
-        "print_name": "hSharedGemm",
-        "dtype": "f16",
-        "display": "Shared memory",
-    },
-    {
-        "id": "blocktiling_1d_f32",
-        "source": "gemm/blocktiling_1d_f32.cu",
-        "kernel": "blocktiling_1d",
-        "print_name": "blocktiling_1d",
-        "dtype": "f32",
-        "display": "1D blocktiling",
-    },
-    {
-        "id": "blocktiling_1d_f16",
-        "source": "gemm/blocktiling_1d_f16.cu",
-        "kernel": "blocktiling_1d_f16",
-        "print_name": "blocktiling_1d_f16",
-        "dtype": "f16",
-        "display": "1D blocktiling",
-    },
-    {
-        "id": "blocktiling_2d_f32",
-        "source": "gemm/blocktiling_2d_f32.cu",
-        "kernel": "blocktiling_2d",
-        "print_name": "blocktiling_2d",
-        "dtype": "f32",
-        "display": "2D blocktiling (vectorized loads)",
-    },
-    {
-        "id": "blocktiling_2d_f16",
-        "source": "gemm/blocktiling_2d_f16.cu",
-        "kernel": "blocktiling_2d_f16",
-        "print_name": "blocktiling_2d_f16",
-        "dtype": "f16",
-        "display": "2D blocktiling",
-    },
-    {
-        "id": "cublas_sgemm",
-        "source": "gemm/cublas_ref.cu",
-        "kernel": None,
-        "print_name": "cublas_sgemm",
-        "dtype": "f32",
-        "display": "cuBLAS SGEMM",
-        "profile": False,
-    },
-    {
-        "id": "cublas_hgemm",
-        "source": "gemm/cublas_ref.cu",
-        "kernel": None,
-        "print_name": "cublas_hgemm",
-        "dtype": "f16",
-        "display": "cuBLAS HGEMM",
-        "profile": False,
-    },
-]
-
-KERNEL_BY_ID = {k["id"]: k for k in KERNELS}
-SUITES = {
-    "naive": ["naive_f32", "naive_f16"],
-    "cublas": ["cublas_sgemm", "cublas_hgemm"],
-    "all": [k["id"] for k in KERNELS],
-}
-
 app = modal.App("minileetcuda")
 
 report_volume = modal.Volume.from_name(
@@ -269,7 +174,7 @@ KERNELS = [
     },
     {
         "id": "naive_f32",
-        "source": "gemm/naive_f32.cu",
+        "source": "gemm/Ampere/naive_f32.cu",
         "kernel": "sgemm_naive",
         "print_name": "sgemm_naive",
         "dtype": "f32",
@@ -277,7 +182,7 @@ KERNELS = [
     },
     {
         "id": "naive_f16",
-        "source": "gemm/naive_f16.cu",
+        "source": "gemm/Ampere/naive_f16.cu",
         "kernel": "hGemm",
         "print_name": "hGemm",
         "dtype": "f16",
@@ -285,7 +190,7 @@ KERNELS = [
     },
     {
         "id": "shared_f32",
-        "source": "gemm/shared_f32.cu",
+        "source": "gemm/Ampere/shared_f32.cu",
         "kernel": "shared_sgemm",
         "print_name": "shared_sgemm",
         "dtype": "f32",
@@ -293,7 +198,7 @@ KERNELS = [
     },
     {
         "id": "shared_f16",
-        "source": "gemm/shared_f16.cu",
+        "source": "gemm/Ampere/shared_f16.cu",
         "kernel": "hSharedGemm",
         "print_name": "hSharedGemm",
         "dtype": "f16",
@@ -301,7 +206,7 @@ KERNELS = [
     },
     {
         "id": "blocktiling_1d_f32",
-        "source": "gemm/blocktiling_1d_f32.cu",
+        "source": "gemm/Ampere/blocktiling_1d_f32.cu",
         "kernel": "blocktiling_1d",
         "print_name": "blocktiling_1d",
         "dtype": "f32",
@@ -309,7 +214,7 @@ KERNELS = [
     },
     {
         "id": "blocktiling_1d_f16",
-        "source": "gemm/blocktiling_1d_f16.cu",
+        "source": "gemm/Ampere/blocktiling_1d_f16.cu",
         "kernel": "blocktiling_1d_f16",
         "print_name": "blocktiling_1d_f16",
         "dtype": "f16",
@@ -317,7 +222,7 @@ KERNELS = [
     },
     {
         "id": "blocktiling_2d_f32",
-        "source": "gemm/blocktiling_2d_f32.cu",
+        "source": "gemm/Ampere/blocktiling_2d_f32.cu",
         "kernel": "blocktiling_2d",
         "print_name": "blocktiling_2d",
         "dtype": "f32",
@@ -325,7 +230,7 @@ KERNELS = [
     },
     {
         "id": "blocktiling_2d_f16",
-        "source": "gemm/blocktiling_2d_f16.cu",
+        "source": "gemm/Ampere/blocktiling_2d_f16.cu",
         "kernel": "blocktiling_2d_f16",
         "print_name": "blocktiling_2d_f16",
         "dtype": "f16",

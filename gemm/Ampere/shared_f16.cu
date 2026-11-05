@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "../common/cuda_utils.cuh"
+#include "../../common/cuda_utils.cuh"
 
 template <const int BLOCKSIZE>
 __global__ void __launch_bounds__(BLOCKSIZE * BLOCKSIZE)

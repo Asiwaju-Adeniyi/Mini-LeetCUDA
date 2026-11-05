@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "../common/cuda_utils.cuh"
+#include "../../common/cuda_utils.cuh"
 
 template <const int BM, const int BN, const int BK, const int TM>
 __global__ void __launch_bounds__((BM / TM) * BN)

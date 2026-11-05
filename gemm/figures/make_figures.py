@@ -5,8 +5,10 @@ Usage (any venv with matplotlib):
     .venv/bin/python gemm/figures/make_figures.py [path/to/bench_all.csv]
 
 Defaults to the Oct 27 2026 A10 sweep (`modal/reports/20261027T065855Z/`).
-Produces, per dtype, a GFLOP/s-vs-size chart with the cuBLAS reference
-overlay, plus a "blocktiling_2d as % of cuBLAS" chart.
+Produces, per dtype, an Ampere-track GFLOP/s-vs-size chart with the cuBLAS
+reference overlay, plus a "blocktiling_2d as % of cuBLAS" chart.  The
+H100/B200 cross-generation numbers are tabulated in gemm/README.md rather
+than plotted here.
 """
 
 from __future__ import annotations
@@ -86,7 +88,7 @@ def gflops_chart(medians, dtype: str, path: Path) -> None:
     dtype_name = {"f32": "fp32", "f16": "fp16 storage, fp32 scalar accumulate"}[dtype]
     ref = "SGEMM" if dtype == "f32" else "HGEMM (tensor cores)"
     ax.set_title(
-        f"GEMM ladder on NVIDIA A10 (sm_86), {dtype_name}\n"
+        f"Ampere SIMT ladder on NVIDIA A10 (sm_86), {dtype_name}\n"
         f"vs cuBLAS {ref}"
     )
     ax.grid(True, which="both", alpha=0.25)
@@ -119,7 +121,7 @@ def ratio_chart(medians, path: Path) -> None:
     ax.set_xlabel("GEMM size  M = N = K")
     ax.set_ylabel("% of cuBLAS")
     ax.set_ylim(0, 100)
-    ax.set_title("Best hand-written kernel vs cuBLAS baseline (A10)")
+    ax.set_title("Best Ampere SIMT kernel vs cuBLAS baseline (A10)")
     ax.grid(True, alpha=0.25)
     ax.legend()
     fig.tight_layout()

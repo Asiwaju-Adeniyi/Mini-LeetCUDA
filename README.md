@@ -113,7 +113,12 @@ findings are discussed in [`gemm/README.md`](gemm/README.md).
 Mini-LeetCUDA/
 ├── common/              # Shared CUDA helpers (checks, timing, reductions)
 ├── reduction/           # Reduction kernels
-├── gemm/                # Matrix multiplication kernels
+├── gemm/                # Matrix multiplication kernels, by architecture
+│   ├── Ampere/          # SIMT ladder (naive → 2D blocktiling), fp32 + fp16
+│   ├── Hopper/          # Reserved for the SM90 WGMMA/TMA track
+│   ├── Blackwell/       # Reserved for the SM100 UMMA/Tensor Memory track
+│   ├── cublas_ref.cu    # Shared cuBLAS SGEMM / HGEMM reference
+│   └── figures/         # A10 ladder plots and generator
 ├── softmax/             # Softmax + online softmax implementations
 ├── layernorm/           # LayerNorm implementations
 ├── MoE/                 # GEMV and top-k kernels
@@ -127,7 +132,8 @@ Mini-LeetCUDA/
 └── modal/               # Remote compile/benchmark/NCU runner (A10/A100/H100/B200)
 ```
 
-The GEMM files use a dtype suffix:
+The GEMM kernels are organized by target architecture, starting with the
+`gemm/Ampere/` SIMT ladder. They use a dtype suffix:
 
 - `*_f32.cu` — fp32 storage and math
 - `*_f16.cu` — fp16 storage with fp32 accumulation

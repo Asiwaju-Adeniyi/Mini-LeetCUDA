@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "../common/cuda_utils.cuh"
+#include "../../common/cuda_utils.cuh"
 
 __device__ __forceinline__ void naive_gemm_impl(const float* __restrict__ a,
                                                 const float* __restrict__ b,

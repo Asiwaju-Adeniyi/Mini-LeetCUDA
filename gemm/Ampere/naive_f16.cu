@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "../common/cuda_utils.cuh"
+#include "../../common/cuda_utils.cuh"
 
 __global__ void hGemm(const __half* __restrict__ a,
                       const __half* __restrict__ b, __half* __restrict__ c,
