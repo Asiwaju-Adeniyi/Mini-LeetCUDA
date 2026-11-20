@@ -7,3 +7,15 @@
 //
 // Scaffold only. The first kernel to implement here is a single-stage SM90
 // WGMMA GEMM; TMA and pipelining follow in later files.
+
+#include <cstdio>
+#include <cuda_runtime.h>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <cute/tensor.hpp>
+#include <cuda_fp16.h>
+
+using namespace cute;
+
+template <class TiledMMA, int mTile, int nTile, int kTile>
+__global__ void cutlassGemm()

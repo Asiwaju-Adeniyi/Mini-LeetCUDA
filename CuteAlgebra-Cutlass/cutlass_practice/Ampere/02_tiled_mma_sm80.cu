@@ -32,16 +32,11 @@ using MMA_P_T = Tile<
     Int<kMmaPK>
 >;
 
-// Deliberately named MMA rather than TiledMMA: with `using namespace cute`,
-// a global `TiledMMA` alias collides with cute::TiledMMA and makes
-// `TiledMMA x;` ambiguous.
 using MMA = decltype(make_tiled_mma(
     mma_atom{},
     MMA_EU_RepeatT{},
     MMA_P_T{}
 ));
-
-
 
 // C (M by N) = A (M by K) * B^T, where B is stored as (N by K).
 // Every warp builds the same TiledMMA; the block-level tile is 128x128x32 and
