@@ -74,40 +74,31 @@ Storage& storage = *reinterpret_cast<Storage*>(sharedMem);
 Tensor sA = make_tensor(make_smem_ptr(storage.A.begin()), sA_layout);
 Tensor sB = make_tensor(make_smem_ptr(storage.B.begin()), sB_layout);
 
-auto range = size<2>(lA);
-
-for (int i = 0; i < range; i++) 
-{
-
-    copy(lA(_,_, i), sA(_, _, 0));
-    copy(lB(_,_, i), sB(_, _, 0));
-
-};
-
-__syncthreads();
-
-__syncthreads();
-
-fence_view_async_shared();
-
-
 auto tMMA = mma.get_slice(threadIdx.x);
 
 Tensor partA = tMMA.partition_A(sA);
 Tensor partB = tMMA.partition_B(sB);
 Tensor partC = tMMA.partition_C(lC);
 
-Tensor fragA = tMMA.make_fragment_A(sA(_,_, 0));
-Tensor fragB = tMMA.make_fragment_B(sB(_,_,0));
-Tensor fragC = tMMA.make_fragment_C(lC);
+Tensor fragA = tMMA.make_fragment_A(partA(_,_, 0));
+Tensor fragB = tMMA.make_fragment_B(partB(_,_,0));
+Tensor fragC = tMMA.make_fragment_C(partC);
 
 clear(fragC);
 
-int range = size<2>(lB);
+auto step = size<2>(lA);
 
-#pragma unroll 1
+for (int i = 0; i < step; i++) 
+{
 
-for (int i = 0; i < range; i++) {
+    copy(lA(_,_, i), sA(_, _, 0));
+    copy(lB(_,_, i), sB(_, _, 0));
+
+    __syncthreads();
+
+__syncthreads();
+
+fence_view_async_shared();
 
     cute::warpgroup_fence_operand(fragC);
 
@@ -122,7 +113,7 @@ for (int i = 0; i < range; i++) {
 
     cute::warpgroup_fence_operand(fragC);
     
-}
+};
 
     copy(fragC, lC);
 
