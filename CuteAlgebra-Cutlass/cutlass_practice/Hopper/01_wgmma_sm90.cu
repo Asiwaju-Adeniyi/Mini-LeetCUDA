@@ -55,6 +55,8 @@ auto sB_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(nTile
 Tensor sA = make_tensor(make_smem_ptr(lA), sA_layout);
 Tensor sB = make_tensor(make_smem_ptr(lB), sA_layout);
 
+__syncthreads();
+
 
 MMA tMMA;
 
@@ -78,9 +80,21 @@ for (int i = 0; i < range; i++) {
     copy(partA(_,_,_,i), fragA);
     copy(partB(_,_,_,i), fragB);
 
+    cute::warpgroup_fence_operand(fragC);
+
+    cute::warpgroup_arrive();
+
     gemm(tMMA, fragC, fragA, fragB, fragC);
 
-    copy(lC, fragC);
+
+    cute::warpgroup_commit_batch();
+
+    cute::warpgroup_wait<0>();
+
+    cute::warpgroup_fence_operand(fragC);
+    
 }
+
+    copy(lC, fragC);
 
 }
