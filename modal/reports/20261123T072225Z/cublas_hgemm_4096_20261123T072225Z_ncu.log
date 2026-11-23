@@ -1,0 +1,10 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 93 (/tmp/minileetcuda_build/cublas_hgemm)
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "nvjet_sm90_hsh_256x128_64x4_1x2_h_bz_coopA_NNT": 0%....50%....100% - 40 passes
+cublas_hgemm mismatches: 0
+cublas_hgemm: 92.270 ms, 1489.53 GFLOP/s
+==PROF== Disconnected from process 93
+==PROF== Report: /tmp/cublas_hgemm_4096_20261123T072225Z.ncu-rep
