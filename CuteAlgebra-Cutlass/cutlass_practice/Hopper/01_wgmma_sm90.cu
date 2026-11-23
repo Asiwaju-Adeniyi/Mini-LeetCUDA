@@ -22,15 +22,24 @@ using mmaAtom =
     SM90_64x64x16_F16F16F16_SS<
         GMMA::Major::MN,
         GMMA::Major::MN
-    >{};
+    >;
 
-auto MMA = make_tiled_mma(mmaAtom{});
+using TiledMma = decltype(make_tiled_mma(mmaAtom{}));
+
+//Array Engine to accomodate pipeline stages (using just 1 pipeline stage for learning.)
+
+template <class T, class LayoutA, class LayoutB> 
+
+struct SharedStorage{
+    alignas(128) ArrayEngine<T, cosize_v<LayoutA>> A;
+    alignas(128) ArrayEngine<T, cosize_v<LayoutB>> B;
+};
+
+
 
 template <int mTile, int nTile, int kTile, int bP, class T>
 
-__global__ void cutlassGemm(const half_t *a, const half_t* b, half_t* c, int m, int n, int k) {
-
-
+__global__ void cutlassGemm(TiledMma mma, const half_t *a, const half_t* b, half_t* c, int m, int n, int k) {
 
     //global tensors of each operand
 
@@ -50,41 +59,61 @@ __global__ void cutlassGemm(const half_t *a, const half_t* b, half_t* c, int m, 
 auto sA_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(mTile, kTile, Int<bP>{}));
 auto sB_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(nTile, kTile, Int<bP>{}));
 
-//Shared memory declarations
 
-Tensor sA = make_tensor(make_smem_ptr(lA), sA_layout);
-Tensor sB = make_tensor(make_smem_ptr(lB), sA_layout);
+//Shared memory declarations
+using SmemLayoutA = decltype(sA_layout);
+using SmemLayoutB = decltype(sB_layout);
+
+extern __shared__ char sharedMem[];
+
+using Storage = SharedStorage<T, SmemLayoutA, SmemLayoutB>;
+
+Storage& storage = *reinterpret_cast<Storage*>(sharedMem);
+
+
+Tensor sA = make_tensor(make_smem_ptr(storage.A.begin()), sA_layout);
+Tensor sB = make_tensor(make_smem_ptr(storage.B.begin()), sB_layout);
+
+auto range = size<2>(lA);
+
+for (int i = 0; i < range; i++) 
+{
+
+    copy(lA(_,_, i), sA(_, _, 0));
+    copy(lB(_,_, i), sB(_, _, 0));
+
+};
 
 __syncthreads();
 
+__syncthreads();
 
-MMA tMMA;
+fence_view_async_shared();
 
-auto tiledMMA = tMMA.get_slice(threadIdx.x);
 
-Tensor partA = tiledMMA.partition_A(lA);
-Tensor partB = tiledMMA.partition_B(lB);
-Tensor partC = tiledMMA.partition_C(C);
+auto tMMA = mma.get_slice(threadIdx.x);
 
-Tensor fragA = tiledMMA.partition_fragment_A(lA(_,_, 0));
-Tensor fragB = tiledMMA.partition_fragment_B(lB(_,_,0));
-Tensor fragC = tiledMMA.partition_fragment_C(lC);
+Tensor partA = tMMA.partition_A(sA);
+Tensor partB = tMMA.partition_B(sB);
+Tensor partC = tMMA.partition_C(lC);
+
+Tensor fragA = tMMA.make_fragment_A(sA(_,_, 0));
+Tensor fragB = tMMA.make_fragment_B(sB(_,_,0));
+Tensor fragC = tMMA.make_fragment_C(lC);
 
 clear(fragC);
 
-int range = size<1>(lB);
+int range = size<2>(lB);
 
 #pragma unroll 1
 
 for (int i = 0; i < range; i++) {
-    copy(partA(_,_,_,i), fragA);
-    copy(partB(_,_,_,i), fragB);
 
     cute::warpgroup_fence_operand(fragC);
 
     cute::warpgroup_arrive();
 
-    gemm(tMMA, fragC, fragA, fragB, fragC);
+    gemm(mma, fragA(_,_,_,0), fragB(_,_,_,0), fragC);
 
 
     cute::warpgroup_commit_batch();
@@ -95,6 +124,6 @@ for (int i = 0; i < range; i++) {
     
 }
 
-    copy(lC, fragC);
+    copy(fragC, lC);
 
 }
