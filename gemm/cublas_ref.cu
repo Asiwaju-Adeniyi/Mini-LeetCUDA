@@ -7,17 +7,22 @@
 //   ./cublas_ref              -> 1024^3
 //   ./cublas_ref 4096         -> 4096^3
 //   ./cublas_ref 4096 2048 512
+//   ./cublas_ref --hgemm-only 4096
 //
 // SGEMM uses the default FP32 math mode (no TF32), so it is a like-for-like
 // baseline for the SIMT FP32 kernels.  HGEMM uses FP16 inputs with FP32
 // accumulation and FP16 output, which is the tensor-core baseline for the
-// SIMT FP16 kernels.
+// SIMT FP16 kernels and the Hopper WGMMA kernels.
+//
+// --hgemm-only skips the SGEMM phase, which keeps NCU launch-skip counts
+// deterministic when profiling only the tensor-core path.
 
 #include <cublas_v2.h>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 #include "../common/cuda_utils.cuh"
@@ -33,8 +38,21 @@
     } while (0)
 
 int main(int argc, char** argv) {
+    bool hgemm_only = false;
+    std::vector<char*> dim_args;
+    dim_args.reserve(argc);
+    dim_args.push_back(argv[0]);
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--hgemm-only") == 0) {
+            hgemm_only = true;
+        } else {
+            dim_args.push_back(argv[i]);
+        }
+    }
+
     int M, N, K;
-    parse_gemm_dims(argc, argv, M, N, K);
+    const int dim_argc = static_cast<int>(dim_args.size());
+    parse_gemm_dims(dim_argc, dim_args.data(), M, N, K);
 
     std::vector<float> h_a(M * K);
     std::vector<float> h_b(K * N);
@@ -82,23 +100,29 @@ int main(int argc, char** argv) {
     const float alpha = 1.0f;
     const float beta = 0.0f;
 
-    // --- SGEMM -------------------------------------------------------------
-    auto launch_sgemm = [&]() {
-        CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K,
-                                 &alpha, d_b, N, d_a, K, &beta, d_c, N));
-    };
+    int bad = 0;
+    float ms = 0.0f;
 
-    launch_sgemm();
-    CUDA_CHECK(cudaDeviceSynchronize());
-    CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, h_c.size() * sizeof(float),
-                          cudaMemcpyDeviceToHost));
+    if (!hgemm_only) {
+        // --- SGEMM ---------------------------------------------------------
+        auto launch_sgemm = [&]() {
+            CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M,
+                                     K, &alpha, d_b, N, d_a, K, &beta, d_c,
+                                     N));
+        };
 
-    int bad = verify_gemm_sample(h_a, h_b, h_c, M, N, K, 32, 1e-3f);
-    std::printf("cublas_sgemm mismatches: %d\n", bad);
+        launch_sgemm();
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, h_c.size() * sizeof(float),
+                              cudaMemcpyDeviceToHost));
 
-    float ms = benchmark_ms(launch_sgemm);
-    std::printf("cublas_sgemm: %.3f ms, %.2f GFLOP/s\n", ms,
-                gflops(M, N, K, ms));
+        bad = verify_gemm_sample(h_a, h_b, h_c, M, N, K, 32, 1e-3f);
+        std::printf("cublas_sgemm mismatches: %d\n", bad);
+
+        ms = benchmark_ms(launch_sgemm);
+        std::printf("cublas_sgemm: %.3f ms, %.2f GFLOP/s\n", ms,
+                    gflops(M, N, K, ms));
+    }
 
     // --- HGEMM ---
     auto launch_hgemm = [&]() {

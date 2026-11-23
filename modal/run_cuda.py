@@ -58,6 +58,14 @@ GPU_CONFIGS = {
     # "!" pins the H100: Modal may otherwise silently upgrade to an H200,
     # which would swap bandwidth/memory-size numbers under the benchmark.
     "h100": {"gpu": "H100!", "arch": "sm_90", "label": "NVIDIA H100 SXM"},
+    # Current Hopper track: CUDA 13.3.1 and sm_90a, which raw WGMMA kernels
+    # require.  The benchmark numbers therefore use a newer cuBLAS than the
+    # historical h100 / CUDA 12.4 table.
+    "h100a": {
+        "gpu": "H100!",
+        "arch": "sm_90a",
+        "label": "NVIDIA H100 SXM (CUDA 13.3.1, sm_90a)",
+    },
     # Blackwell (sm_100) needs CUDA >= 12.8; 13.3.1 is the toolkit CUTLASS
     # recommends for code generation on Blackwell.
     "b200": {"gpu": "B200", "arch": "sm_100", "label": "NVIDIA B200"},
@@ -65,12 +73,14 @@ GPU_CONFIGS = {
 
 # Maps SM architecture -> the CUDA toolkit that must build it.  Modal builds
 # one image chain per *distinct tag*, not per architecture: sm_80/sm_86/sm_90
-# share the same 12.4 base, so a 1:1 mapping would rebuild identical apt
-# layers and triple the surface for transient registry/mirror flakes.
+# share the same 12.4 base, and sm_90a/sm_100 share the 13.3.1 image, so a 1:1
+# mapping would rebuild identical apt layers and triple the surface for
+# transient registry/mirror flakes.
 CUDA_IMAGE_TAG = {
     "sm_80": "12.4.0",
     "sm_86": "12.4.0",
     "sm_90": "12.4.0",
+    "sm_90a": "13.3.1",
     "sm_100": "13.3.1",
 }
 
@@ -248,11 +258,12 @@ KERNELS = [
     {
         "id": "cublas_hgemm",
         "source": "gemm/cublas_ref.cu",
-        "kernel": None,
+        "kernel": ".*",
         "print_name": "cublas_hgemm",
         "dtype": "f16",
         "display": "cuBLAS HGEMM",
-        "profile": False,
+        "profile": True,
+        "args": ["--hgemm-only"],
     },
 ]
 
@@ -260,6 +271,7 @@ KERNEL_BY_ID = {k["id"]: k for k in KERNELS}
 SUITES = {
     "naive": ["naive_f32", "naive_f16"],
     "cublas": ["cublas_sgemm", "cublas_hgemm"],
+    "cublas_hgemm": ["cublas_hgemm"],
     # Cutlass practice jobs run their own harness (output text, launch
     # conventions, hardcoded problem size), so they live out of "all".
     "cutlass": ["matmul_cute_v0", "tiled_mma"],
@@ -281,6 +293,7 @@ SUITES = {
 REPORTS_SUBDIR_BY_SUITE = {
     "naive": "gemm",
     "cublas": "gemm",
+    "cublas_hgemm": "gemm",
     "all": "gemm",
     "cutlass": "cutlass",
 }
@@ -434,7 +447,7 @@ def _run_benchmark(
 ) -> dict[str, float | int]:
     print(f"\n=== running {job['id']} at {size}^3 ===")
     result = subprocess.run(
-        [str(executable), str(size)],
+        [str(executable), str(size), *job.get("args", [])],
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -592,6 +605,7 @@ def _profile_job(
         str(report_base),
         str(executable),
         str(size),
+        *job.get("args", []),
     ]
 
     print(f"\n=== ncu {job['id']} at {size}^3 (skip {launch_skip}) ===")
@@ -838,6 +852,19 @@ def profile_h100_cuda13(config: dict) -> dict:
 
 
 @app.function(
+    # Hopper track: same CUDA 13.3.1 image as profile_h100_cuda13, but built
+    # with -arch=sm_90a so raw WGMMA kernels can be added to this path.
+    image=IMAGES["sm_90a"],
+    gpu="H100!",
+    timeout=3600,
+    startup_timeout=900,
+    volumes={REPORTS_MOUNT: report_volume},
+)
+def profile_h100a(config: dict) -> dict:
+    return _impl(config)
+
+
+@app.function(
     image=IMAGES["sm_100"],
     gpu="B200",
     timeout=3600,
@@ -884,8 +911,8 @@ def _download_file(remote_name: str, local_dir: Path, subdir: str) -> Path:
 
 @app.local_entrypoint()
 def main(
-    suite: Literal["naive", "cublas", "cutlass", "all"] = "naive",
-    gpu: Literal["a10", "a100", "h100", "b200"] = "a10",
+    suite: Literal["naive", "cublas", "cublas_hgemm", "cutlass", "all"] = "naive",
+    gpu: Literal["a10", "a100", "h100", "h100a", "b200"] = "a10",
     mode: Literal["warmup", "profile", "both", "sweep", "ncu-sweep", "all"] = "both",
     size: int = 4096,
     sizes: str = ",".join(str(s) for s in DEFAULT_SIZES),
@@ -924,6 +951,7 @@ def main(
         "a10": profile_a10,
         "a100": profile_a100,
         "h100": profile_h100,
+        "h100a": profile_h100a,
         "b200": profile_b200,
     }
     remote = remote_by_gpu[gpu]

@@ -48,7 +48,9 @@ write-up.
 Problem: square GEMM, `M = N = K` from 128 to 4096, median of 3 reps. The A10
 tables are the original baseline. The H100 and B200 tables rerun the exact same
 generic SIMT kernels on newer GPUs; they are not architecture-specific H100 or
-B200 implementations.
+B200 implementations. The H100 cuBLAS HGEMM reference is also re-measured on
+the current CUDA 13.3.1 / `sm_90a` toolkit below; the historical H100 table
+stays on CUDA 12.4.0 so it remains comparable to its original run.
 
 **A10 (sm_86) — original baseline**
 
@@ -105,6 +107,27 @@ until `mma` shows up.
 | 1024 | 4405 | 9583 | 13321 | 12458 | 228106 |
 | 2048 | 4617 | 9936 | 15508 | **29703** | 622228 |
 | 4096 | 4739 | 9641 | 15661 | **30443** | 700307 |
+
+**H100 (sm_90a, CUDA 13.3.1) — current cuBLAS HGEMM reference**
+
+The historical H100 table above uses CUDA 12.4.0. For the Hopper track, the
+shared `cublas_ref.cu` HGEMM baseline is also measured with the CUDA 13.3.1
+image and `sm_90a`, keeping the same `cublasGemmEx` fp16→fp32→fp16 call.
+Median of 5 reps, each with 5 warmup + 50 timed launches:
+
+| size | median | min | max | spread | SM clock |
+|---|---|---|---|---|---|
+| 2048 | 680.6 TFLOP/s | 674.6 | 684.4 | 1.44% | 1980 MHz |
+| 4096 | 762.7 TFLOP/s | 761.6 | 763.3 | 0.22% | 1980 MHz |
+
+Both sizes report 0 mismatches. The 4096³ result is the current target for the
+Hopper WGMMA track; the single-shot 769 TFLOP/s from the profiling warmup was
+a faster outlier. Reproduce with:
+
+```bash
+modal run modal/run_cuda.py --suite cublas_hgemm --mode sweep \
+  --sizes 2048,4096 --reps 5 --gpu h100a
+```
 
 **B200 (sm_100) — same SIMT ladder**
 
@@ -238,6 +261,14 @@ modal run modal/run_cuda.py --suite all --mode sweep --gpu h100
 modal run modal/run_cuda.py --suite all --mode sweep --gpu b200
 ```
 
+The current H100 cuBLAS HGEMM reference (CUDA 13.3.1, `sm_90a`, 5 reps) uses
+the focused suite and the `h100a` GPU config:
+
+```bash
+modal run modal/run_cuda.py --suite cublas_hgemm --mode sweep \
+  --sizes 2048,4096 --reps 5 --gpu h100a
+```
+
 Median-of-3 results land in `modal/reports/<run_id>/bench_all.csv` (all sizes
 128…4096, 3 reps). `--mode ncu-sweep` additionally writes one NCU report per
 kernel per size, exported as both `.ncu-rep` (GUI) and `_details.txt` /
@@ -254,10 +285,15 @@ kernel per size, exported as both `.ncu-rep` (GUI) and `_details.txt` /
 | cuBLAS | `cublasSgemm` (default FP32, no TF32) and `cublasGemmEx` fp16→fp32→fp16 tensor-op | same calls | same calls |
 | NCU | `--launch-skip 6`, `--launch-count 1`, `--set full`, `--clock-control none` | not profiled | not profiled |
 
+The `h100` column above is the historical CUDA 12.4.0 convention. The Hopper
+track uses the `h100a` config (CUDA 13.3.1, `sm_90a`), which also builds raw
+WGMMA kernels; its cuBLAS HGEMM reference is the 5-rep table above.
+
 Reports: the A10 numbers come from `modal/reports/20261027T065855Z/`, with the
 smaller `20261027T065505Z/` and `20261027T065012Z/` runs alongside it. The
 H100 table comes from `modal/reports/20261105T064144Z/` and the B200 table from
-`modal/reports/20261105T065011Z/`. An A10 warmup after the directory move is in
+`modal/reports/20261105T065011Z/`. The current H100 HGEMM reference comes from
+`modal/reports/20261123T075211Z/`. An A10 warmup after the directory move is in
 `modal/reports/20261105T063955Z/`.
 
 One caveat NCU itself prints on every report: profiling ran with
@@ -270,10 +306,12 @@ rows record their own clock snapshots in `bench_all.csv`.
 ## Hopper
 
 `Hopper/` is reserved for the SM90 track and currently contains only
-`.gitkeep`; there are no kernels or benchmark rows yet. Implementation style
-and file progression are TBD. Candidate topics when the track starts: WGMMA
-fragments and synchronization, TMA loads, and multistage / warp-specialized
-pipelining.
+`.gitkeep`; there are no kernels or benchmark rows yet. The track is raw CUDA
+C++/PTX (not the CUTLASS/CuTe practice path). Its cuBLAS HGEMM target is
+**762.7 TFLOP/s at 4096³** (median of 5, CUDA 13.3.1, `h100a` config), as
+listed in the H100 reference table above. Candidate topics when the track
+starts: WGMMA fragments and synchronization, TMA loads, and multistage /
+warp-specialized pipelining.
 
 ## Blackwell
 
@@ -301,7 +339,7 @@ clusters / multicast, 2-SM MMA, and the epilogue.
 
 ### Hopper
 
-- [ ] Choose the implementation style (raw CUDA/PTX vs CUTLASS/CuTe)
+- [x] Choose the implementation style: raw CUDA C++/PTX under `gemm/Hopper`
 - [ ] Define the WGMMA/TMA/pipelining progression
 
 ### Blackwell
