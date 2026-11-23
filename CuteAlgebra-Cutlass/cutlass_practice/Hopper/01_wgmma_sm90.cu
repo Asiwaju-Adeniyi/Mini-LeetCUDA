@@ -24,11 +24,13 @@ using mmaAtom =
         GMMA::Major::MN
     >{};
 
-auto tiledMMA = make_tiled_mma(mmaAtom{});
+auto MMA = make_tiled_mma(mmaAtom{});
 
-template <class TiledMMA, int mTile, int nTile, int kTile, int bP, class T>
+template <int mTile, int nTile, int kTile, int bP, class T>
 
 __global__ void cutlassGemm(const half_t *a, const half_t* b, half_t* c, int m, int n, int k) {
+
+
 
     //global tensors of each operand
 
@@ -48,10 +50,37 @@ __global__ void cutlassGemm(const half_t *a, const half_t* b, half_t* c, int m, 
 auto sA_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(mTile, kTile, Int<bP>{}));
 auto sB_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(nTile, kTile, Int<bP>{}));
 
+//Shared memory declarations
+
+Tensor sA = make_tensor(make_smem_ptr(lA), sA_layout);
+Tensor sB = make_tensor(make_smem_ptr(lB), sA_layout);
 
 
+MMA tMMA;
 
+auto tiledMMA = tMMA.get_slice(threadIdx.x);
 
+Tensor partA = tiledMMA.partition_A(lA);
+Tensor partB = tiledMMA.partition_B(lB);
+Tensor partC = tiledMMA.partition_C(C);
 
+Tensor fragA = tiledMMA.partition_fragment_A(lA(_,_, 0));
+Tensor fragB = tiledMMA.partition_fragment_B(lB(_,_,0));
+Tensor fragC = tiledMMA.partition_fragment_C(lC);
+
+clear(fragC);
+
+int range = size<1>(lB);
+
+#pragma unroll 1
+
+for (int i = 0; i < range; i++) {
+    copy(partA(_,_,_,i), fragA);
+    copy(partB(_,_,_,i), fragB);
+
+    gemm(tMMA, fragC, fragA, fragB, fragC);
+
+    copy(lC, fragC);
+}
 
 }
