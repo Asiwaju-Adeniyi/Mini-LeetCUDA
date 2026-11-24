@@ -63,10 +63,30 @@ using Storage = SharedStorage<T, SmemLayoutA, SmemLayoutB>;
 
 Storage& storage = *reinterpret_cast<Storage*>(sharedMem);
 
-
 Tensor sA = make_tensor(make_smem_ptr(storage.A.begin()), sA_layout);
 Tensor sB = make_tensor(make_smem_ptr(storage.B.begin()), sB_layout);
 
+// partitioning work for shared memory copy
+
+// Making A and B copy atoms
+auto copyA = make_tiled_copy(UniversalCopy<half_t>, half_t>{}, 
+    Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
+auto copyB = make_tiled_copy(UniversalCopy<half_t>, half_t>{}, 
+    Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
+
+//Making A and B thread layouts, defining the values threads will copy, and partitioning the source and destination tensors. 
+auto thr_copy_A = copyA.get_slice(threadIdx.x);
+Tensor tAgA = thr_copy_A.partition_S(lA);
+Tensor tAsA = thr_copy_A.partition_G(sA);
+Tensor tArA = make_fragment_like(tAsA(_,_,_,0));
+
+auto thr_copy_B = copyB.get_slice(threadIdx.x);
+Tensor tBgB = thr_copy_B.partition_S(lB);
+Tensor tBsB = thr_copy_B.partition_D(sB);
+Tensor tArA = make_fragment_like(tBsB(_,_,_,0));
+
+
+// partitioning work for mma
 auto tMMA = mma.get_slice(threadIdx.x);
 
 Tensor partA = tMMA.partition_A(sA);
@@ -79,19 +99,21 @@ Tensor fragC = tMMA.make_fragment_C(partC);
 
 clear(fragC);
 
+
 auto step = size<2>(lA);
 
 for (int i = 0; i < step; i++) 
 {
+    //We first copy from global to registers then copy from registers to shared.
+    copy(copyA, tAgA(_,_,_,i), tArA);
+    copy(copyB, tAgB(_,_,_,i), tBrB);
+    copy(tArA, tAsA(_,_,_,0));  //We only have one shared memory staging buffer hence the 0.
+    copy(tBrB, tBsB(_,_,_,0)); 
 
-    copy(lA(_,_, i), sA(_, _, 0));
-    copy(lB(_,_, i), sB(_, _, 0));
+    __syncthreads(); //thread synchronization per block.
+    
+    fence_view_async_shared(); //warp group synchronization primitive. 
 
-    __syncthreads();
-
-__syncthreads();
-
-fence_view_async_shared();
 
     cute::warpgroup_fence_operand(fragC);
 
