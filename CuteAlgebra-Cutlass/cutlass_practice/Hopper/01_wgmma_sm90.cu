@@ -69,9 +69,9 @@ Tensor sB = make_tensor(make_smem_ptr(storage.B.begin()), sB_layout);
 // partitioning work for shared memory copy
 
 // Making A and B copy atoms
-auto copyA = make_tiled_copy(UniversalCopy<half_t>, half_t>{}, 
+auto copyA = make_tiled_copy(Copy_Atom<UniversalCopy<half_t>, half_t>{}, 
     Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
-auto copyB = make_tiled_copy(UniversalCopy<half_t>, half_t>{}, 
+auto copyB = make_tiled_copy(Copy_Atom<UniversalCopy<half_t>, half_t>{}, 
     Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
 
 //Making A and B thread layouts, defining the values threads will copy, and partitioning the source and destination tensors. 
