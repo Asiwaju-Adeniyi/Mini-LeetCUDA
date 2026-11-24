@@ -112,7 +112,7 @@ for (int i = 0; i < step; i++)
 
     __syncthreads(); //thread synchronization per block.
     
-    fence_view_async_shared(); //warp group synchronization primitive. 
+    cutlass::arch::fence_view_async_shared(); //warp group synchronization primitive. 
 
 
     cute::warpgroup_fence_operand(fragC);
@@ -132,4 +132,79 @@ for (int i = 0; i < step; i++)
 
     copy(fragC, partC);
 
+}
+
+
+__global__ void ref_gemm(const half_t* A, const half_t* B, float* C,
+                         int M, int N, int K) {
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  int m = blockIdx.y * blockDim.y + threadIdx.y;
+  if (m < M && n < N) {
+    float acc = 0.f;
+    for (int k = 0; k < K; ++k) acc += float(A[m * K + k]) * float(B[n * K + k]);
+    C[m * N + n] = acc;
+  }
+}
+
+
+int main() {
+  constexpr int tileM = 128, tileN = 128, tileK = 32, stages = 1;
+  int M = 2048, N = 2048, K = 2048;
+
+  TiledMma tiled_mma;
+
+  thrust::host_vector<half_t> h_A(M * K), h_B(N * K);
+  for (int i = 0; i < M * K; ++i) h_A[i] = half_t(float((i % 7) - 3) / 4.f);
+  for (int i = 0; i < N * K; ++i) h_B[i] = half_t(float((i % 5) - 2) / 4.f);
+  thrust::device_vector<half_t> d_A = h_A, d_B = h_B;
+  thrust::device_vector<half_t> d_C(M * N, half_t(0));
+  thrust::device_vector<float> d_R(M * N, 0.f);
+
+  const half_t* pA = thrust::raw_pointer_cast(d_A.data());
+  const half_t* pB = thrust::raw_pointer_cast(d_B.data());
+  half_t* pC = thrust::raw_pointer_cast(d_C.data());
+  float* pR = thrust::raw_pointer_cast(d_R.data());
+
+  auto sA_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<half_t>{},
+                                 make_shape(Int<tileM>{}, Int<tileK>{}, Int<stages>{}));
+  auto sB_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<half_t>{},
+                                 make_shape(Int<tileN>{}, Int<tileK>{}, Int<stages>{}));
+  int smem_bytes = int(cosize(sA_layout) + cosize(sB_layout)) * int(sizeof(half_t));
+
+  dim3 grid(N / tileN, M / tileM);
+  dim3 block(int(size(tiled_mma)));
+
+  auto launch = [&]() {
+    cutlassGemm<tileM, tileN, tileK, stages, half_t>
+      <<<grid, block, smem_bytes>>>(tiled_mma, pA, pB, pC, M, N, K);
+  };
+
+  launch();
+  ref_gemm<<<dim3((N + 15) / 16, (M + 15) / 16), dim3(16, 16)>>>(pA, pB, pC, pR, M, N, K);
+  cudaError_t err = cudaDeviceSynchronize();
+  if (err != cudaSuccess) { printf("CUDA error: %s\n", cudaGetErrorString(err)); return 1; }
+
+  thrust::host_vector<half_t> h_C = d_C;
+  thrust::host_vector<float> h_R = d_R;
+  int bad = 0; float max_err = 0.f;
+  for (int i = 0; i < M * N; ++i) {
+    float e = fabsf(float(h_C[i]) - h_R[i]);
+    max_err = fmaxf(max_err, e);
+    bad += (e > 1e-2f);
+  }
+  printf("mismatches: %d, max abs error: %g\n", bad, max_err);
+
+  for (int i = 0; i < 3; ++i) launch();
+  cudaEvent_t t0, t1;
+  cudaEventCreate(&t0); cudaEventCreate(&t1);
+  int iters = 20;
+  cudaEventRecord(t0);
+  for (int i = 0; i < iters; ++i) launch();
+  cudaEventRecord(t1);
+  cudaEventSynchronize(t1);
+  float ms = 0.f;
+  cudaEventElapsedTime(&ms, t0, t1);
+  ms /= iters;
+  double tflops = 2.0 * M * N * K / (ms * 1e-3) / 1e12;
+  printf("avg time: %.3f ms, %.2f TFLOP/s\n", ms, tflops);
 }

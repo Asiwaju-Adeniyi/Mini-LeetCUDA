@@ -247,6 +247,21 @@ KERNELS = [
         "display": "2D blocktiling",
     },
     {
+        "id": "wgmma_sm90",
+        "source": "CuteAlgebra-Cutlass/cutlass_practice/Hopper/01_wgmma_sm90.cu",
+        "kernel": "cutlassGemm",
+        "print_name": "cutlassGemm",
+        "dtype": "f16",
+        "display": "Hopper WGMMA (single-stage)",
+        "cutlass": True,
+        "bench_size": 2048,
+        "warmup": 3,
+        "timed": 20,
+        "timing_re": r"^avg time: ([\d.]+) ms, ([\d.]+) TFLOP/s",
+        "flops_factor": 1000.0,  # printed TFLOP/s -> CSV GFLOP/s
+        "mismatch_re": r"^mismatches:\s+(\d+)",
+    },
+    {
         "id": "cublas_sgemm",
         "source": "gemm/cublas_ref.cu",
         "kernel": None,
@@ -275,6 +290,7 @@ SUITES = {
     # Cutlass practice jobs run their own harness (output text, launch
     # conventions, hardcoded problem size), so they live out of "all".
     "cutlass": ["matmul_cute_v0", "tiled_mma"],
+    "hopper": ["wgmma_sm90"],
     "all": [
         "naive_f32",
         "naive_f16",
@@ -296,6 +312,7 @@ REPORTS_SUBDIR_BY_SUITE = {
     "cublas_hgemm": "gemm",
     "all": "gemm",
     "cutlass": "cutlass",
+    "hopper": "cutlass",
 }
 
 
@@ -911,7 +928,7 @@ def _download_file(remote_name: str, local_dir: Path, subdir: str) -> Path:
 
 @app.local_entrypoint()
 def main(
-    suite: Literal["naive", "cublas", "cublas_hgemm", "cutlass", "all"] = "naive",
+    suite: Literal["naive", "cublas", "cublas_hgemm", "cutlass", "hopper", "all"] = "naive",
     gpu: Literal["a10", "a100", "h100", "h100a", "b200"] = "a10",
     mode: Literal["warmup", "profile", "both", "sweep", "ncu-sweep", "all"] = "both",
     size: int = 4096,
