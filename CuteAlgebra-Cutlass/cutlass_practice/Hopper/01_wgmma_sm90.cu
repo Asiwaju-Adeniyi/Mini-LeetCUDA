@@ -7,6 +7,7 @@
 #include <thrust/device_vector.h>
 #include <cute/tensor.hpp>
 #include <cuda_fp16.h>
+ #include <cutlass/arch/barrier.h>
 
 using namespace cute;
 
@@ -27,7 +28,6 @@ struct SharedStorage{
     alignas(128) ArrayEngine<T, cosize_v<LayoutA>> A;
     alignas(128) ArrayEngine<T, cosize_v<LayoutB>> B;
 };
-
 
 
 template <int mTile, int nTile, int kTile, int bP, class T>
@@ -77,13 +77,13 @@ auto copyB = make_tiled_copy(Copy_Atom<UniversalCopy<half_t>, half_t>{},
 //Making A and B thread layouts, defining the values threads will copy, and partitioning the source and destination tensors. 
 auto thr_copy_A = copyA.get_slice(threadIdx.x);
 Tensor tAgA = thr_copy_A.partition_S(lA);
-Tensor tAsA = thr_copy_A.partition_G(sA);
+Tensor tAsA = thr_copy_A.partition_D(sA);
 Tensor tArA = make_fragment_like(tAsA(_,_,_,0));
 
 auto thr_copy_B = copyB.get_slice(threadIdx.x);
 Tensor tBgB = thr_copy_B.partition_S(lB);
 Tensor tBsB = thr_copy_B.partition_D(sB);
-Tensor tArA = make_fragment_like(tBsB(_,_,_,0));
+Tensor tBrB = make_fragment_like(tBsB(_,_,_,0));
 
 
 // partitioning work for mma
@@ -93,8 +93,8 @@ Tensor partA = tMMA.partition_A(sA);
 Tensor partB = tMMA.partition_B(sB);
 Tensor partC = tMMA.partition_C(lC);
 
-Tensor fragA = tMMA.make_fragment_A(partA(_,_, 0));
-Tensor fragB = tMMA.make_fragment_B(partB(_,_,0));
+Tensor fragA = tMMA.make_fragment_A(partA);
+Tensor fragB = tMMA.make_fragment_B(partB);
 Tensor fragC = tMMA.make_fragment_C(partC);
 
 clear(fragC);
@@ -130,6 +130,6 @@ for (int i = 0; i < step; i++)
     
 };
 
-    copy(fragC, lC);
+    copy(fragC, partC);
 
 }
