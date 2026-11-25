@@ -33,12 +33,13 @@ REPORTS_ROOT = REPO_ROOT / "modal" / "reports"
 OUT_DIR = Path(__file__).resolve().parent
 
 SIZE = 2048
-KERNELS = ("matmul_cute_v0", "tiled_mma", "cublas_hgemm")
+KERNELS = ("matmul_cute_v0", "tiled_mma", "cublas_hgemm", "wgmma_sm90")
 
 # (arch, display-name, measured-where) — plot order matters.
 GPUS = [
     ("sm_75", "T4 (sm_75)\nColab", "colab"),
     ("sm_90", "H100 SXM\n(sm_90)", "modal"),
+    ("sm_90a", "H100 SXM\n(sm_90a)", "modal"),
     ("sm_100", "B200\n(sm_100)", "modal"),
 ]
 
@@ -52,6 +53,7 @@ STYLE = {
     "matmul_cute_v0": dict(color="tab:blue", label="Ampere v0 (SM75 atom)"),
     "tiled_mma": dict(color="tab:green", label="Ampere TiledMMA (SM80 atom)"),
     "cublas_hgemm": dict(color="tab:red", label="cuBLAS HGEMM"),
+    "wgmma_sm90": dict(color="tab:purple", label="Hopper WGMMA (SM90 atom)"),
 }
 
 # The explicit TiledMMA kernel uses an SM80 atom, so it has no T4 row; the
@@ -106,10 +108,19 @@ def collect() -> dict[str, dict[str, float]]:
 
 
 def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
-    arches = [arch for arch, _, _ in GPUS if arch in data]
-    labels = [name for arch, name, _ in GPUS if arch in data]
-    v0_tf = [data[arch]["matmul_cute_v0"][1] for arch in arches]
-    ref_tf = [data[arch]["cublas_hgemm"][1] for arch in arches]
+    valid_arches = [
+        arch for arch, _, _ in GPUS
+        if arch in data
+        and "matmul_cute_v0" in data[arch]
+        and "cublas_hgemm" in data[arch]
+    ]
+    if not valid_arches:
+        print(f"note: no data to plot in {path.name}; skipping")
+        return
+
+    labels = [name for arch, name, _ in GPUS if arch in valid_arches]
+    v0_tf = [data[arch]["matmul_cute_v0"][1] for arch in valid_arches]
+    ref_tf = [data[arch]["cublas_hgemm"][1] for arch in valid_arches]
     pct = [100 * v / r for v, r in zip(v0_tf, ref_tf)]
 
     fig, (ax_speed, ax_pct) = plt.subplots(
@@ -117,7 +128,7 @@ def two_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
     )
 
     # Panel A: absolute TFLOP/s, log scale, value-labelled bars.
-    x = range(len(arches))
+    x = range(len(valid_arches))
     width = 0.38
     bars_v0 = ax_speed.bar(
         [i - width / 2 for i in x], v0_tf, width,
@@ -272,6 +283,80 @@ def style_color_pct() -> str:
     return "tab:blue"
 
 
+def wgmma_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> None:
+    """Hopper only: WGMMA vs cuBLAS HGEMM."""
+    arches = [
+        arch
+        for arch, _, _ in GPUS
+        if arch in data and "wgmma_sm90" in data[arch] and "cublas_hgemm" in data[arch]
+    ]
+    if not arches:
+        print(f"note: no wgmma_sm90 rows yet; skipping {path.name}")
+        return
+
+    labels = [name for arch, name, _ in GPUS if arch in arches]
+    wgmma_tf = [data[arch]["wgmma_sm90"][1] for arch in arches]
+    ref_tf = [data[arch]["cublas_hgemm"][1] for arch in arches]
+    pct = [100 * v / r for v, r in zip(wgmma_tf, ref_tf)]
+
+    fig, (ax_speed, ax_pct) = plt.subplots(
+        1, 2, figsize=(10.5, 4.4), **FIG_KWARGS
+    )
+
+    x = range(len(valid_arches))
+    width = 0.38
+    bars_wgmma = ax_speed.bar(
+        [i - width / 2 for i in x], wgmma_tf, width,
+        color=STYLE["wgmma_sm90"]["color"],
+        label=STYLE["wgmma_sm90"]["label"],
+    )
+    bars_ref = ax_speed.bar(
+        [i + width / 2 for i in x], ref_tf, width,
+        color=STYLE["cublas_hgemm"]["color"], label="cuBLAS HGEMM",
+    )
+    ax_speed.set_yscale("log")
+    ax_speed.set_ylim(1, max(ref_tf) * 10)
+    ax_speed.set_xticks(list(x))
+    ax_speed.set_xticklabels(labels)
+    ax_speed.set_ylabel("TFLOP/s (log scale)")
+    ax_speed.set_title("Absolute: Hopper WGMMA vs cuBLAS, 2048\u00b3 fp16")
+    ax_speed.grid(True, axis="y", alpha=0.25)
+    for bars, values in ((bars_wgmma, wgmma_tf), (bars_ref, ref_tf)):
+        for bar, val in zip(bars, values):
+            ax_speed.annotate(
+                f"{val:.2f}" if val < 100 else f"{val:.0f}",
+                (bar.get_x() + bar.get_width() / 2, val),
+                xytext=(0, 3), textcoords="offset points",
+                ha="center", fontsize=8,
+            )
+    ax_speed.legend(loc="upper left", fontsize=8)
+
+    bars_pct = ax_pct.bar(x, pct, 0.5, color="tab:purple")
+    ax_pct.set_ylim(0, 100)
+    ax_pct.set_xticks(list(x))
+    ax_pct.set_xticklabels(labels)
+    ax_pct.set_ylabel("WGMMA as % of same-GPU cuBLAS")
+    ax_pct.set_title("Relative: WGMMA \u00f7 same-GPU cuBLAS")
+    ax_pct.grid(True, axis="y", alpha=0.25)
+    for bar, val in zip(bars_pct, pct):
+        ax_pct.annotate(
+            f"{val:.0f}%",
+            (bar.get_x() + bar.get_width() / 2, val),
+            xytext=(0, 3), textcoords="offset points",
+            ha="center", fontsize=9, fontweight="bold",
+        )
+
+    fig.suptitle(
+        "Hopper WGMMA vs cuBLAS HGEMM, M = N = K = 2048",
+        fontsize=11, y=1.0,
+    )
+    fig.tight_layout()
+    fig.savefig(path)
+    plt.close(fig)
+    for name, tfw, tfr, p in zip(labels, wgmma_tf, ref_tf, pct):
+        print(f"  {name.replace(chr(10), ' ')}: WGMMA {tfw:.2f} TF vs {tfr:.2f} TF ({p:.0f}%)")
+
+
 def main() -> None:
     data = collect()
     if len(data) < 2:
@@ -282,7 +367,10 @@ def main() -> None:
     tiled_out = OUT_DIR / "tiledmma_vs_v0_vs_cublas.png"
     print(f"writing {tiled_out}")
     tiled_panel(data, tiled_out)
-    print("wrote 2 figures ->", OUT_DIR)
+    wgmma_out = OUT_DIR / "wgmma_sm90_vs_cublas.png"
+    print(f"writing {wgmma_out}")
+    wgmma_panel(data, wgmma_out)
+    print("wrote 3 figures ->", OUT_DIR)
 
 
 if __name__ == "__main__":

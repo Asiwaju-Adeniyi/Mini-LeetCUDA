@@ -1,6 +1,5 @@
 // Scaffold only. The first kernel to implement here is a single-stage SM90
 // WGMMA GEMM; TMA and pipelining follow in later files.
-
 #include <cstdio>
 #include <cuda_runtime.h>
 #include <thrust/host_vector.h>
@@ -10,7 +9,6 @@
  #include <cutlass/arch/barrier.h>
 
 using namespace cute;
-
 
 using mmaAtom =
     SM90_64x64x16_F16F16F16_SS<
@@ -67,7 +65,6 @@ Tensor sA = make_tensor(make_smem_ptr(storage.A.begin()), sA_layout);
 Tensor sB = make_tensor(make_smem_ptr(storage.B.begin()), sB_layout);
 
 // partitioning work for shared memory copy
-
 // Making A and B copy atoms
 auto copyA = make_tiled_copy(Copy_Atom<UniversalCopy<half_t>, half_t>{}, 
     Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
@@ -106,7 +103,7 @@ for (int i = 0; i < step; i++)
 {
     //We first copy from global to registers then copy from registers to shared.
     copy(copyA, tAgA(_,_,_,i), tArA);
-    copy(copyB, tAgB(_,_,_,i), tBrB);
+    copy(copyB, tBgB(_,_,_,i), tBrB);
     copy(tArA, tAsA(_,_,_,0));  //We only have one shared memory staging buffer hence the 0.
     copy(tBrB, tBsB(_,_,_,0)); 
 
@@ -121,7 +118,6 @@ for (int i = 0; i < step; i++)
 
     gemm(mma, fragA(_,_,_,0), fragB(_,_,_,0), fragC);
 
-
     cute::warpgroup_commit_batch();
 
     cute::warpgroup_wait<0>();
@@ -129,10 +125,9 @@ for (int i = 0; i < step; i++)
     cute::warpgroup_fence_operand(fragC);
     
 };
-
     copy(fragC, partC);
-
 }
+
 
 
 __global__ void ref_gemm(const half_t* A, const half_t* B, float* C,
@@ -180,7 +175,7 @@ int main() {
   };
 
   launch();
-  ref_gemm<<<dim3((N + 15) / 16, (M + 15) / 16), dim3(16, 16)>>>(pA, pB, pC, pR, M, N, K);
+  ref_gemm<<<dim3((N + 15) / 16, (M + 15) / 16), dim3(16, 16)>>>(pA, pB, pR, M, N, K);
   cudaError_t err = cudaDeviceSynchronize();
   if (err != cudaSuccess) { printf("CUDA error: %s\n", cudaGetErrorString(err)); return 1; }
 

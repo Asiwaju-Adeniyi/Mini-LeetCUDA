@@ -26,7 +26,7 @@ CuteAlgebra-Cutlass/
 ## Current status
 
 - **Ampere**: `01_naive_cute.cu` is benchmarked on T4/H100/B200; `02_tiled_mma_sm80.cu` on H100/B200.
-- **Hopper**: `01_wgmma_sm90.cu` is a scaffold for the Colfax WGMMA tutorial.
+- **Hopper**: `01_wgmma_sm90.cu` — WGMMA single-stage host harness added; benchmark pending CUTLASS v4.8.1 API fixes for compilation on sm_90a.
 - **Blackwell**: `01_mma_sm100.cu` is a scaffold for the Colfax tensor-memory series.
 
 All benchmark tables, NCU findings, figures, and reproduction commands are in
