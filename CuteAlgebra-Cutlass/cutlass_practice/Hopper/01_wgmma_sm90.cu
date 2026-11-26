@@ -12,8 +12,8 @@ using namespace cute;
 
 using mmaAtom =
     SM90_64x64x16_F16F16F16_SS<
-        GMMA::Major::MN,
-        GMMA::Major::MN
+        GMMA::Major::K,
+        GMMA::Major::K
     >;
 
 using TiledMma = decltype(make_tiled_mma(mmaAtom{}));
@@ -21,15 +21,12 @@ using TiledMma = decltype(make_tiled_mma(mmaAtom{}));
 //Array Engine to accomodate pipeline stages (using just 1 pipeline stage for learning.)
 
 template <class T, class LayoutA, class LayoutB> 
-
 struct SharedStorage{
     alignas(128) ArrayEngine<T, cosize_v<LayoutA>> A;
     alignas(128) ArrayEngine<T, cosize_v<LayoutB>> B;
 };
 
-
 template <int mTile, int nTile, int kTile, int bP, class T>
-
 __global__ void cutlassGemm(TiledMma mma, const half_t *a, const half_t* b, half_t* c, int m, int n, int k) {
 
     //global tensors of each operand
@@ -47,8 +44,8 @@ __global__ void cutlassGemm(TiledMma mma, const half_t *a, const half_t* b, half
 
   //Shared memory layouts 
 
-auto sA_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(mTile, kTile, Int<bP>{}));
-auto sB_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<T>{}, make_shape(nTile, kTile, Int<bP>{}));
+auto sA_layout = tile_to_shape(GMMA::Layout_K_SW128_Atom<T>{}, make_shape(Int<mTile>{}, Int<kTile>{}, Int<bP>{}));
+auto sB_layout = tile_to_shape(GMMA::Layout_K_SW128_Atom<T>{}, make_shape(Int<nTile>{}, Int<kTile>{}, Int<bP>{}));
 
 
 //Shared memory declarations
@@ -66,21 +63,19 @@ Tensor sB = make_tensor(make_smem_ptr(storage.B.begin()), sB_layout);
 
 // partitioning work for shared memory copy
 // Making A and B copy atoms
-auto copyA = make_tiled_copy(Copy_Atom<UniversalCopy<half_t>, half_t>{}, 
-    Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
-auto copyB = make_tiled_copy(Copy_Atom<UniversalCopy<half_t>, half_t>{}, 
-    Layout<Shape<_4, _32>>{}, Layout<Shape<_1, _1>>{});
+auto copyA = make_tiled_copy(Copy_Atom<SM80_CP_ASYNC_CACHEALWAYS<uint128_t>, half_t>{}, 
+    Layout<Shape<_16, _8>, Stride<_8, _1>>{}, Layout<Shape<_1, _8>>{});
+auto copyB = make_tiled_copy(Copy_Atom<SM80_CP_ASYNC_CACHEALWAYS<uint128_t>, half_t>{}, 
+    Layout<Shape<_16, _8>, Stride<_8, _1>>{}, Layout<Shape<_1, _8>>{});
 
 //Making A and B thread layouts, defining the values threads will copy, and partitioning the source and destination tensors. 
 auto thr_copy_A = copyA.get_slice(threadIdx.x);
 Tensor tAgA = thr_copy_A.partition_S(lA);
-Tensor tAsA = thr_copy_A.partition_D(sA);
-Tensor tArA = make_fragment_like(tAsA(_,_,_,0));
+Tensor tAsA = thr_copy_A.partition_D(as_position_independent_swizzle_tensor(sA));
 
 auto thr_copy_B = copyB.get_slice(threadIdx.x);
 Tensor tBgB = thr_copy_B.partition_S(lB);
-Tensor tBsB = thr_copy_B.partition_D(sB);
-Tensor tBrB = make_fragment_like(tBsB(_,_,_,0));
+Tensor tBsB = thr_copy_B.partition_D(as_position_independent_swizzle_tensor(sB));
 
 
 // partitioning work for mma
@@ -101,15 +96,12 @@ auto step = size<2>(lA);
 
 for (int i = 0; i < step; i++) 
 {
-    //We first copy from global to registers then copy from registers to shared.
-    copy(copyA, tAgA(_,_,_,i), tArA);
-    copy(copyB, tBgB(_,_,_,i), tBrB);
-    copy(tArA, tAsA(_,_,_,0));  //We only have one shared memory staging buffer hence the 0.
-    copy(tBrB, tBsB(_,_,_,0)); 
+    copy(copyA, tAgA(_,_,_,i), tAsA(_,_,_,Int<0>{}));
+    copy(copyB, tBgB(_,_,_,i), tBsB(_,_,_,Int<0>{}));
+    cp_async_fence();
+    cp_async_wait<0>();
 
     __syncthreads(); //thread synchronization per block.
-    
-    cutlass::arch::fence_view_async_shared(); //warp group synchronization primitive. 
 
 
     cute::warpgroup_fence_operand(fragC);
@@ -128,8 +120,6 @@ for (int i = 0; i < step; i++)
     copy(fragC, partC);
 }
 
-
-
 __global__ void ref_gemm(const half_t* A, const half_t* B, float* C,
                          int M, int N, int K) {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -143,7 +133,7 @@ __global__ void ref_gemm(const half_t* A, const half_t* B, float* C,
 
 
 int main() {
-  constexpr int tileM = 128, tileN = 128, tileK = 32, stages = 1;
+  constexpr int tileM = 128, tileN = 128, tileK = 64, stages = 1;
   int M = 2048, N = 2048, K = 2048;
 
   TiledMma tiled_mma;
@@ -160,9 +150,9 @@ int main() {
   half_t* pC = thrust::raw_pointer_cast(d_C.data());
   float* pR = thrust::raw_pointer_cast(d_R.data());
 
-  auto sA_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<half_t>{},
+  auto sA_layout = tile_to_shape(GMMA::Layout_K_SW128_Atom<half_t>{},
                                  make_shape(Int<tileM>{}, Int<tileK>{}, Int<stages>{}));
-  auto sB_layout = tile_to_shape(GMMA::Layout_MN_SW128_Atom<half_t>{},
+  auto sB_layout = tile_to_shape(GMMA::Layout_K_SW128_Atom<half_t>{},
                                  make_shape(Int<tileN>{}, Int<tileK>{}, Int<stages>{}));
   int smem_bytes = int(cosize(sA_layout) + cosize(sB_layout)) * int(sizeof(half_t));
 

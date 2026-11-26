@@ -1,0 +1,10 @@
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 100 (/tmp/minileetcuda_build/wgmma_sm90)
+==WARNING== Unable to access the following 6 metrics: ctc__rx_bytes_data_user.sum, ctc__rx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__rx_bytes_data_user.sum.per_second, ctc__tx_bytes_data_user.sum, ctc__tx_bytes_data_user.sum.pct_of_peak_sustained_elapsed, ctc__tx_bytes_data_user.sum.per_second.
+
+
+==PROF== Profiling "cutlassGemm": 0%....50%....100% - 40 passes
+mismatches: 0, max abs error: 0
+avg time: 194.270 ms, 0.09 TFLOP/s
+==PROF== Disconnected from process 100
+==PROF== Report: /tmp/wgmma_sm90_2048_20261126T072344Z.ncu-rep

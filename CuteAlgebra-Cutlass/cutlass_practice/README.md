@@ -12,7 +12,7 @@ These are fp16 tensor-core GEMMs written with CUTLASS/CuTe, organized by target 
 |---|---|---|---|
 | `Ampere/01_naive_cute.cu` | SM75 atom | v0: fragments loaded global → register | Benchmarked |
 | `Ampere/02_tiled_mma_sm80.cu` | SM80 atom | explicit `TiledMMA`, 16x8x16 fp16 → fp32 | Benchmarked |
-| `Hopper/01_wgmma_sm90.cu` | SM90 | WGMMA scaffold | Scaffold |
+| `Hopper/01_wgmma_sm90.cu` | SM90 | single-stage WGMMA GEMM | Benchmarked |
 | `Blackwell/01_mma_sm100.cu` | SM100 | UMMA / Tensor Memory scaffold | Scaffold |
 | `tiledCopy.cu` | generic | global → shared `TiledCopy` exercise | WIP |
 | `vedAdd.cu` | generic | CuTe vector-add exercise | WIP |
@@ -69,10 +69,10 @@ The gap widens every generation: **17% → 9% → 5%** of same-GPU cuBLAS. v0 ba
 
 | Version | Time (ms) | TFLOP/s | % of cuBLAS | What changed |
 |---|---|---|---|---|
-| cuBLAS HGEMM (reference) | ~0.027 | ~630.38 | 100% | same `cublasGemmEx` call as the Ampere rows |
-| WGMMA single-stage (SM90 atom) | TBD | TBD | TBD | `SM90_64x64x16_F16F16F16_SS` atom, 128 threads, single-stage shared-memory staging |
+| cuBLAS HGEMM (reference) | 0.025 | 680.58 | 100% | same `cublasGemmEx` call as the Ampere rows |
+| WGMMA single-stage (SM90 atom) | 0.060 | 286.12 | 42% | `SM90_64x64x16_F16F16F16_SS` atom, 128 threads, K-major 128×64 smem tiles, single-stage cp.async |
 
-NCU results pending — kernel requires CUTLASS v4.8.1 API fixes before it compiles on sm_90a.
+NCU (full set): 70.6 µs at 1.84 GHz, Compute (SM) **24.0%**, Tensor pipe 24.0%, Memory 45.3%, L1/TEX 49.8%, DRAM 7.6%. The kernel is latency-bound, not bandwidth-bound: warps spend 36.5% of the 19.3 cycles between issued instructions waiting on the shared-memory scoreboard and 32.7% at the CTA barrier, with **90.4% of cycles having no eligible warp**. A single 32 KB stage forces `cp_async_wait<0>` + `__syncthreads()` on every k-step — load, wait, MMA, repeat — so the tensor cores idle while the next tile is fetched. That serialization is the gap to cuBLAS, which pipelines stages and uses TMA; NCU also notes the grid is only 0.65 waves per SM at 2048³.
 
 ![Hopper WGMMA vs cuBLAS HGEMM, M = N = K = 2048](figures/wgmma_sm90_vs_cublas.png)
 
@@ -218,7 +218,7 @@ The explicit TiledMMA run is a useful control: swapping the MMA atom and using t
 
 ### Hopper
 
-- [ ] `01_wgmma_sm90.cu`: single-stage WGMMA GEMM
+- [x] `01_wgmma_sm90.cu`: single-stage WGMMA GEMM
 - [ ] `02_wgmma_tma_sm90.cu`: TMA loads feeding WGMMA
 - [ ] `03_pipeline_sm90.cu`: multistage / warp-specialized pipeline
 

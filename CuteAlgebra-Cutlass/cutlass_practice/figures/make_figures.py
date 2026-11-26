@@ -11,9 +11,9 @@ Usage (any venv with matplotlib):
     python figures/make_figures.py
 
 Data: every modal/reports/*/bench_all.csv on disk is scanned for
-`matmul_cute_v0`, `tiled_mma` and `cublas_hgemm` rows at size 2048 (medians
-computed per GPU). The T4 baseline is hardcoded — it predates the runner and
-was measured on Colab (numbers from the README).
+`matmul_cute_v0`, `tiled_mma`, `cublas_hgemm` and `wgmma_sm90` rows at size 2048
+(medians computed per GPU). The T4 baseline is hardcoded — it predates the
+runner and was measured on Colab (numbers from the README).
 """
 
 from __future__ import annotations
@@ -303,7 +303,7 @@ def wgmma_panel(data: dict[str, dict[str, dict[str, float]]], path: Path) -> Non
         1, 2, figsize=(10.5, 4.4), **FIG_KWARGS
     )
 
-    x = range(len(valid_arches))
+    x = range(len(arches))
     width = 0.38
     bars_wgmma = ax_speed.bar(
         [i - width / 2 for i in x], wgmma_tf, width,
